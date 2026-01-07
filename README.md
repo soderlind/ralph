@@ -22,11 +22,10 @@ References:
 - Thread: https://x.com/mattpocockuk/status/2007924876548637089
 - Video:  [Ship working code while you sleep with the Ralph Wiggum technique | Matt Pocock](https://www.youtube.com/watch?v=_IK18goX4X8)
 
-You’ll find three helper scripts:
+You’ll find two helper scripts:
 
 - **`ralph.sh`** — runs Copilot in a loop for _N_ iterations (stops early if Copilot prints `<promise>COMPLETE</promise>`).
 - **`ralph-once.sh`** — runs Copilot exactly once (useful for quick testing / dry-runs).
-- **`test-coverage-ralph.sh`** — runs Copilot in a loop to iteratively improve test coverage (one meaningful test per iteration).
 
 
 > You should adjust the prompt/instructions in the scripts to suit your project and workflow.
@@ -49,7 +48,6 @@ https://github.com/user-attachments/assets/221b4b44-d6ac-455c-86e9-66baa470953d
 ├── progress.txt
 ├── ralph.sh
 ├── ralph-once.sh
-└── test-coverage-ralph.sh
 ```
 
 
@@ -203,21 +201,6 @@ The prompt includes:
 
 
 
-## `test-coverage-ralph.sh`
-
-This script applies the Ralph loop to test coverage:
-
-- Each iteration runs `pnpm coverage` to find gaps.
-- Copilot writes **one** meaningful test (or uses `/* v8 ignore ... */` for low-value code).
-- Copilot commits the change and appends notes to `test-coverage-progress.txt`.
-
-### Usage
-```bash
-./test-coverage-ralph.sh 10
-```
-
-
-
 ## Notes on permissions / safety
 
 Copilot CLI supports tool permission flags like:
@@ -246,10 +229,6 @@ Adjust these to match your comfort level and CI/CD setup.
    ./ralph.sh 20
    ```
 4. Review `progress.txt` for a running log of changes and next steps.
-5. (Optional) Improve tests iteratively:
-  ```bash
-  ./test-coverage-ralph.sh 10
-  ```
 
 ## Demo
 
