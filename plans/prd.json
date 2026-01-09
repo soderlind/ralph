@@ -9,7 +9,7 @@
 			"Verify the message appears in the message list",
 			"Verify the message content matches what was typed"
 		],
-		"passes": false
+		"passes": true
 	},
 	{
 		"category": "functional",

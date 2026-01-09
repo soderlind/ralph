@@ -135,6 +135,12 @@ if [[ ! -r "$prd_file" ]]; then
    exit 1
 fi
 
+progress_file="progress.txt"
+if [[ ! -r "$progress_file" ]]; then
+   echo "Error: progress file not readable: $progress_file" >&2
+   exit 1
+fi
+
 if [[ -n "$prompt_file" ]] && [[ -z "$allow_profile" ]] && [[ ${#allow_tools[@]} -eq 0 ]]; then
    echo "Error: when using --prompt, you must specify --allow-profile or at least one --allow-tools" >&2
    usage
@@ -189,6 +195,48 @@ for tool in "${deny_tools[@]:-}"; do
    copilot_tool_args+=(--deny-tool "$tool")
 done
 
-copilot --model "$MODEL" \
-   -p "@$prd_file @progress.txt $PROMPT" \
-   "${copilot_tool_args[@]}"
+# Copilot may return non-zero (auth/rate limit/etc). Still print its output.
+set +e
+
+# Copilot CLI 0.0.377+ may produce no output when a prompt contains multiple
+# @file attachments. Combine PRD + progress into a single attachment.
+context_file="$(mktemp ".ralph-context.XXXXXX")"
+{
+   echo "# Context"
+   echo
+   echo "## PRD ($prd_file)"
+   cat "$prd_file"
+   echo
+   echo "## progress.txt"
+   cat "$progress_file"
+   echo
+} >"$context_file"
+
+result=$(
+   copilot --add-dir "$PWD" --model "$MODEL" \
+      -p "@$context_file $PROMPT" \
+      "${copilot_tool_args[@]}" \
+      2>&1
+)
+status=$?
+set -e
+
+if command -v script >/dev/null 2>&1; then
+   transcript_file="$(mktemp -t ralph-copilot.XXXXXX)"
+   set +e
+   script -q -F "$transcript_file" \
+      copilot --add-dir "$PWD" --model "$MODEL" \
+         -p "@$context_file $PROMPT" \
+         "${copilot_tool_args[@]}" \
+      >/dev/null 2>&1
+   status=$?
+   set -e
+   result="$(cat "$transcript_file" 2>/dev/null || true)"
+   rm -f "$transcript_file" >/dev/null 2>&1 || true
+fi
+
+rm -f "$context_file" >/dev/null 2>&1 || true
+
+echo "$result"
+exit "$status"
+exit "$status"

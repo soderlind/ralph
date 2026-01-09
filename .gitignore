@@ -1,0 +1,14 @@
+# Prompt test harness artifacts
+/test/log/**
+!/test/log/.gitkeep
+/test/worktrees/**
+/test/tmp-wt/**
+
+# Local Copilot / runner temp context files
+.ctx.*
+.ralph-context.*
+.ralph-ctx.*
+.ctx
+
+# Ad-hoc temp files from manual runs
+/tmp-copilot-test.txt

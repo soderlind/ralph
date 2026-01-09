@@ -149,6 +149,12 @@ if [[ ! -r "$prd_file" ]]; then
   exit 1
 fi
 
+progress_file="progress.txt"
+if [[ ! -r "$progress_file" ]]; then
+  echo "Error: progress file not readable: $progress_file" >&2
+  exit 1
+fi
+
 if [[ -n "$prompt_file" ]] && [[ -z "$allow_profile" ]] && [[ ${#allow_tools[@]} -eq 0 ]]; then
   echo "Error: when using --prompt, you must specify --allow-profile or at least one --allow-tools" >&2
   usage
@@ -156,6 +162,8 @@ if [[ -n "$prompt_file" ]] && [[ -z "$allow_profile" ]] && [[ ${#allow_tools[@]}
 fi
 
 declare -a copilot_tool_args
+declare -a available_tools
+available_tools=()
 
 # Always deny a small set of dangerous commands.
 copilot_tool_args+=(--deny-tool 'shell(rm)')
@@ -174,9 +182,11 @@ if [[ ${#allow_tools[@]} -eq 0 ]]; then
         copilot_tool_args+=(--allow-tool 'write')
         copilot_tool_args+=(--allow-tool 'shell(pnpm)')
         copilot_tool_args+=(--allow-tool 'shell(git)')
+        available_tools+=('write' 'shell(pnpm)' 'shell(git)')
         ;;
       locked)
         copilot_tool_args+=(--allow-tool 'write')
+        available_tools+=('write')
         ;;
       *)
         echo "Error: unknown --allow-profile: $allow_profile" >&2
@@ -191,32 +201,70 @@ if [[ ${#allow_tools[@]} -eq 0 ]]; then
       copilot_tool_args+=(--allow-tool 'write')
       copilot_tool_args+=(--allow-tool 'shell(pnpm)')
       copilot_tool_args+=(--allow-tool 'shell(git)')
+      available_tools+=('write' 'shell(pnpm)' 'shell(git)')
     fi
   fi
 fi
 
 for tool in "${allow_tools[@]:-}"; do
   copilot_tool_args+=(--allow-tool "$tool")
+  available_tools+=("$tool")
 done
 
 for tool in "${deny_tools[@]:-}"; do
   copilot_tool_args+=(--deny-tool "$tool")
 done
 
+# Copilot CLI requires --allow-all-tools for non-interactive tool execution.
+# When we have a specific allowlist (safe/locked or explicit --allow-tools),
+# also restrict the tool set via --available-tools to avoid unintended tools.
+copilot_tool_args+=(--allow-all-tools)
+if [[ "${allow_profile:-}" != "dev" ]] && [[ ${#available_tools[@]} -gt 0 ]]; then
+  copilot_tool_args+=(--available-tools "${available_tools[@]}")
+fi
+
 for ((i=1; i<=iterations; i++)); do
   echo -e "\nIteration $i"
   echo "------------------------------------"
 
+  # Copilot CLI 0.0.377+ may produce no output when a prompt contains multiple
+  # @file attachments. Combine PRD + progress into a single attachment.
+  context_file="$(mktemp ".ralph-context.${i}.XXXXXX")"
+  {
+    echo "# Context"
+    echo
+    echo "## PRD ($prd_file)"
+    cat "$prd_file"
+    echo
+    echo "## progress.txt"
+    cat "$progress_file"
+    echo
+  } >"$context_file"
+
   # Copilot may return non-zero (auth/rate limit/etc). Don't let that kill the loop.
   set +e
-  result=$(
-    copilot --model "$MODEL" \
-      -p "@$prd_file @progress.txt $PROMPT" \
-      "${copilot_tool_args[@]}" \
-      2>&1
-  )
-  status=$?
+  if command -v script >/dev/null 2>&1; then
+    transcript_file="$(mktemp -t ralph-copilot.XXXXXX)"
+    script -q -F "$transcript_file" \
+      copilot --add-dir "$PWD" --model "$MODEL" \
+        -p "@$context_file $PROMPT" \
+        "${copilot_tool_args[@]}" \
+      >/dev/null 2>&1
+    status=$?
+    result="$(cat "$transcript_file" 2>/dev/null || true)"
+    rm -f "$transcript_file" >/dev/null 2>&1 || true
+  else
+    result=$(
+      copilot --add-dir "$PWD" --model "$MODEL" \
+        -p "@$context_file $PROMPT" \
+        "${copilot_tool_args[@]}" \
+        2>&1
+    )
+    status=$?
+  fi
   set -e
+
+  rm -f "$context_file" >/dev/null 2>&1 || true
 
   echo "$result"
 

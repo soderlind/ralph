@@ -133,8 +133,6 @@ run_one_prompt() {
   # reflect local changes even if they aren't committed yet.
   mkdir -p prompts
   cp "$ROOT/prompts/$prompt_file" "prompts/$prompt_file"
-  cp "$ROOT/ralph-once.sh" ./ralph-once.sh
-  chmod +x ./ralph-once.sh
 
   # Prompt-specific tool policy (kept in the runner, not in prompt files).
   # Feel free to tweak these mappings as you add more prompts.
@@ -144,30 +142,95 @@ run_one_prompt() {
 
   args=("--prompt" "prompts/$prompt_file" "--prd" "$prd_file")
 
+  # Build Copilot CLI tool flags (kept in the harness, not in prompt files).
+  declare -a copilot_tool_args
+  copilot_tool_args=()
+
+  # Always deny a small set of dangerous commands.
+  copilot_tool_args+=(--deny-tool 'shell(rm)')
+  copilot_tool_args+=(--deny-tool 'shell(git push)')
+
   case "$prompt_file" in
     wordpress-plugin-agent.txt)
-      args+=("--allow-profile" "safe")
-      args+=("--allow-tools" "write")
-      args+=("--allow-tools" "shell(git)")
-      args+=("--allow-tools" "shell(npx)")
-      args+=("--allow-tools" "shell(composer)")
-      args+=("--allow-tools" "shell(npm)")
+      # Explicit allowlist for WP prompt.
+      copilot_tool_args+=(--allow-tool 'write')
+      copilot_tool_args+=(--allow-tool 'shell(git)')
+      copilot_tool_args+=(--allow-tool 'shell(npx)')
+      copilot_tool_args+=(--allow-tool 'shell(composer)')
+      copilot_tool_args+=(--allow-tool 'shell(npm)')
       ;;
     safe-write-only.txt)
-      args+=("--allow-profile" "locked")
+      # Locked: write-only.
+      copilot_tool_args+=(--allow-tool 'write')
       ;;
     *)
-      # Default prompt expects pnpm + git checks; safe profile already allows those.
-      args+=("--allow-profile" "safe")
+      # Default: safe profile (write + pnpm + git).
+      copilot_tool_args+=(--allow-tool 'write')
+      copilot_tool_args+=(--allow-tool 'shell(pnpm)')
+      copilot_tool_args+=(--allow-tool 'shell(git)')
       ;;
   esac
 
-  echo "==> [$prompt_name] running ralph-once.sh ${args[*]}" | tee -a "$log_file"
+  echo "==> [$prompt_name] running copilot (pseudo-TTY)" | tee -a "$log_file"
+  echo "==> [$prompt_name] prompt: ${args[*]}" | tee -a "$log_file"
+  echo "==> [$prompt_name] tools: ${copilot_tool_args[*]}" | tee -a "$log_file"
 
+  echo "--- COPILOT OUTPUT START ---" | tee -a "$log_file"
+
+  # Copilot CLI output may go directly to the TTY. Use `script` to capture it.
   set +e
-  MODEL="$MODEL" ./ralph-once.sh "${args[@]}" >>"$log_file" 2>&1
-  local status=$?
+  status=0
+  transcript_file="$(mktemp -t ralph-copilot.XXXXXX)"
+
+  # Combine PRD + progress into a single attachment to avoid multi-@ parsing issues.
+  context_file="$(mktemp .ralph-context.XXXXXX)"
+  {
+    echo "# Context"
+    echo
+    echo "## PRD ($prd_file)"
+    cat "$prd_file"
+    echo
+    echo "## progress.txt"
+    cat "progress.txt"
+    echo
+  } >"$context_file"
+
+  if command -v script >/dev/null 2>&1; then
+    env MODEL="$MODEL" script -q -F "$transcript_file" \
+      copilot --add-dir "$PWD" --model "$MODEL" \
+        -p "@$context_file $(cat "prompts/$prompt_file")" \
+        "${copilot_tool_args[@]}" \
+      >/dev/null 2>&1
+    status=$?
+  else
+    # Fallback: best-effort capture via stdout/stderr.
+    out=$(
+      copilot --add-dir "$PWD" --model "$MODEL" \
+        -p "@$context_file $(cat "prompts/$prompt_file")" \
+        "${copilot_tool_args[@]}" \
+        2>&1
+    )
+    status=$?
+    printf '%s\n' "$out" >"$transcript_file"
+  fi
+
+  cat "$transcript_file" >>"$log_file" 2>&1 || true
+  rm -f "$transcript_file" >/dev/null 2>&1 || true
+  rm -f "$context_file" >/dev/null 2>&1 || true
+
   set -e
+
+  echo "--- COPILOT OUTPUT END ---" | tee -a "$log_file"
+
+  # Guard against false positives: if we captured no copilot output at all, treat as failure.
+  if ! awk '
+      $0=="--- COPILOT OUTPUT START ---" {capturing=1; next}
+      $0=="--- COPILOT OUTPUT END ---" {capturing=0}
+      capturing {print}
+    ' "$log_file" | grep -q '[^[:space:]]'; then
+    echo "[ASSERT] No Copilot output captured" | tee -a "$log_file" >&2
+    status=3
+  fi
 
   # Basic expectations for certain prompts.
   if [[ "$prompt_file" == "wordpress-plugin-agent.txt" ]]; then

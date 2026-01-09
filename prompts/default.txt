@@ -1,5 +1,5 @@
 Work in the current repo. Use these files as your source of truth:
-- The PRD JSON file provided via @... (do not assume its path)
+- The PRD JSON file provided as context (do not assume its path)
 - progress.txt
 
 1. Find the highest-priority feature to work on and work only on that feature.

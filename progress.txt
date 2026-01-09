@@ -1,2 +1,6 @@
 # Progress log
 
+- 2026-01-09: Implemented core message-sending behavior via a minimal `ChatStore` (in-memory) with a Vitest unit test.
+  - Added `package.json` + `tsconfig.json` with `pnpm typecheck` and `pnpm test` scripts.
+  - Note: this environment denied running `pnpm`/`node` and `git add/commit` (permission prompt couldn’t be shown), so checks + commit must be done manually.
+  - Next: implement persistence after refresh/reopen (likely via a storage abstraction) and then real-time delivery.
