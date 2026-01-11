@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-01-12
+
+### Added
+- `--skill <a[,b,...]>` support in `ralph.sh` and `ralph-once.sh` (prepends `skills/<name>/SKILL.md` into the attached context).
+- `--only <prompt1[,prompt2...]>` filter in `test/run-prompts.sh` to run selected prompt tests.
+- Vendored WordPress skills under `test/skills/` for the harness:
+
+  - `wp-plugin-development`
+  - `wp-project-triage`
+
+### Fixed
+- `test/run-prompts.sh`: WordPress skill staging now copies from `$ROOT/test/skills/...` (so it works inside per-prompt worktrees).
+- `test/run-prompts.sh`: WordPress assertions/skill injection now match `wordpress-plugin-agent.txt` consistently.
+
+### Changed
+- `test/run-prompts.sh`: WordPress prompt test now stages those vendored skills into a top-level `skills/` folder inside the worktree and injects the WP plugin skill into the context attachment.
+
 ## [1.0.0] - 2026-01-10
 
 ### Added

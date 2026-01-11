@@ -140,6 +140,7 @@ MODEL=claude-opus-4.5 ./ralph-once.sh --prompt prompts/default.txt --prd plans/p
 |--------------------------|--------------------------------------|-----------------------|
 | `--prompt <file>`        | Load prompt from file (required)     | —                     |
 | `--prd <file>`           | Optionally attach a PRD JSON file    | —                     |
+| `--skill <a[,b,...]>`    | Prepend skills from `skills/<name>/SKILL.md` | —              |
 | `--allow-profile <name>` | Permission profile (see below)       | —                     |
 | `--allow-tools <spec>`   | Allow specific tool (repeatable)     | —                     |
 | `--deny-tools <spec>`    | Deny specific tool (repeatable)      | —                     |
@@ -270,6 +271,24 @@ Ralph always denies a small set of dangerous commands (currently `shell(rm)` and
 
 - Single attachment workaround: Ralph combines PRD + `progress.txt` into one context file to avoid Copilot CLI issues with multiple `@file` attachments.
 - Pseudo-TTY capture in the harness: `test/run-prompts.sh` uses `script(1)` to capture output even when Copilot writes directly to the TTY.
+
+### Skills (`--skill`)
+
+Skills let you prepend reusable instructions into the same attached context file.
+Pass a comma-separated list (repeatable):
+
+- `--skill wp-block-development` loads `skills/wp-block-development/SKILL.md`
+- `--skill aa,bb,cc` loads `skills/aa/SKILL.md`, `skills/bb/SKILL.md`, `skills/cc/SKILL.md`
+
+Example:
+
+```bash
+./ralph.sh --prompt prompts/wordpress-plugin-agent.txt \
+  --skill wp-block-development,wp-cli \
+  --prd plans/prd.json \
+  --allow-profile safe \
+  5
+```
 
 ---
 

@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-RALPH_VERSION="1.0.0"
+RALPH_VERSION="1.1.0"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
    cat <<USAGE
 Usage:
-   $0 --prompt <file> [--prd <file>] [--allow-profile <safe|dev|locked>] [--allow-tools <toolSpec> ...] [--deny-tools <toolSpec> ...]
+   $0 --prompt <file> [--prd <file>] [--skill <a[,b,...]>] [--allow-profile <safe|dev|locked>] [--allow-tools <toolSpec> ...] [--deny-tools <toolSpec> ...]
 
 Options:
    --prompt <file>           Load prompt text from file (required).
    --prd <file>              Optionally attach a PRD JSON file.
+   --skill <a[,b,...]>       Prepend one or more skills from skills/<name>/SKILL.md (comma-separated).
    --allow-profile <name>    Tool permission profile: safe | dev | locked.
    --allow-tools <toolSpec>  Allow a specific tool (repeatable). Example: --allow-tools write
                                           Use quotes if the spec includes spaces: --allow-tools 'shell(git push)'
@@ -26,11 +27,19 @@ USAGE
 
 prompt_file=""
 prd_file=""
+skills_csv=""
 allow_profile=""
 declare -a allow_tools
 declare -a deny_tools
 allow_tools=()
 deny_tools=()
+
+trim() {
+   local s="$1"
+   s="${s#"${s%%[![:space:]]*}"}"
+   s="${s%"${s##*[![:space:]]}"}"
+   printf '%s' "$s"
+}
 
 while [[ $# -gt 0 ]]; do
    case "$1" in
@@ -60,6 +69,34 @@ while [[ $# -gt 0 ]]; do
             echo "Error: --prd requires a file path" >&2
             usage
             exit 1
+         fi
+         shift
+         ;;
+      --skill)
+         shift
+         if [[ $# -lt 1 || -z "${1:-}" ]]; then
+            echo "Error: --skill requires a value" >&2
+            usage
+            exit 1
+         fi
+         if [[ -n "$skills_csv" ]]; then
+            skills_csv+=",$1"
+         else
+            skills_csv="$1"
+         fi
+         shift
+         ;;
+      --skill=*)
+         v="${1#--skill=}"
+         if [[ -z "$v" ]]; then
+            echo "Error: --skill requires a value" >&2
+            usage
+            exit 1
+         fi
+         if [[ -n "$skills_csv" ]]; then
+            skills_csv+=",$v"
+         else
+            skills_csv="$v"
          fi
          shift
          ;;
@@ -139,6 +176,12 @@ if [[ ! -r "$progress_file" ]]; then
    exit 1
 fi
 
+declare -a skills
+skills=()
+if [[ -n "$skills_csv" ]]; then
+   IFS=',' read -r -a skills <<<"$skills_csv"
+fi
+
 if [[ -z "$allow_profile" ]] && [[ ${#allow_tools[@]} -eq 0 ]]; then
    echo "Error: you must specify --allow-profile or at least one --allow-tools" >&2
    usage
@@ -196,6 +239,25 @@ context_file="$(mktemp .ralph-context.XXXXXX)"
 {
    echo "# Context"
    echo
+   if [[ ${#skills[@]} -gt 0 ]]; then
+      echo "## Skills"
+      for raw in "${skills[@]}"; do
+         skill="$(trim "$raw")"
+         if [[ -z "$skill" ]]; then
+            continue
+         fi
+         skill_file="skills/$skill/SKILL.md"
+         if [[ ! -r "$skill_file" ]]; then
+            echo "Error: skill not found/readable: $skill_file" >&2
+            exit 1
+         fi
+         echo
+         echo "### $skill"
+         echo
+         cat "$skill_file"
+      done
+      echo
+   fi
    if [[ -n "$prd_file" ]]; then
       echo "## PRD ($prd_file)"
       cat "$prd_file"
