@@ -50,6 +50,7 @@ https://github.com/user-attachments/assets/28206ee1-8dad-4871-aef5-1a9f24625dba
 - [Matt Pocock's thread](https://x.com/mattpocockuk/status/2007924876548637089)
 - [Ship working code while you sleep (video)](https://www.youtube.com/watch?v=_IK18goX4X8)
 - [11 Tips For AI Coding With Ralph Wiggum](https://www.aihero.dev/tips-for-ai-coding-with-ralph-wiggum)
+- [Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)
 
 ---
 
