@@ -241,11 +241,12 @@ Logs: `test/log/`
 
 Ralph is just a thin wrapper around the Copilot CLI. The important flags it relies on are:
 
-### `--context-file`
+### Context attachment (`-p "@file ..."`)
 
-`--context-file <path>` tells Copilot CLI to read additional context from a file and include it in the model input.
+Ralph passes context to Copilot by attaching a file directly in the prompt
+using Copilot’s `@file` syntax (for example: `-p "@.ralph-context... Follow the attached prompt."`).
 
-Ralph uses this to build one temporary “attachment” file per iteration that typically contains:
+Ralph builds one temporary “attachment” file per iteration that typically contains:
 
 - `progress.txt` (always)
 - PRD JSON (only if you pass `--prd <file>`)
