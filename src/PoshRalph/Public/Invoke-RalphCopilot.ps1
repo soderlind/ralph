@@ -104,7 +104,6 @@ function Invoke-RalphCopilot {
             '--model', $Model
             '--no-color'
             '--stream', 'off'
-            '--silent'
             '-p', "@$combinedPromptFile Follow the attached prompt."
         ) + $toolArgs
 
