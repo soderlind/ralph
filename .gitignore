@@ -9,6 +9,10 @@
 .ralph-context.*
 .ralph-ctx.*
 .ctx
+.ralph-prompt.*
 
 # Ad-hoc temp files from manual runs
 /tmp-copilot-test.txt
+
+# PowerShell temp files
+*.tmp
