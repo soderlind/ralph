@@ -15,7 +15,8 @@ function New-ContextFile {
         [string]$ProgressFile
     )
 
-    $tempFile = [System.IO.Path]::GetTempFileName()
+    # Create temp file in current directory instead of system temp
+    $tempFile = Join-Path $PWD ".ralph-context-$(Get-Random).tmp"
     $sb = [System.Text.StringBuilder]::new()
 
     [void]$sb.AppendLine("# Context")

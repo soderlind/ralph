@@ -10,3 +10,13 @@
   - Storage adapter pattern already in place with LocalStorageAdapter and tests validating persistence.
   - All tests pass and types check successfully.
   - Next: Consider real-time message delivery (WebSocket/polling) or unread counts.
+
+- 2026-01-20: Completed real-time message delivery feature (PRD item 3).
+  - Implemented subscription/observer pattern with subscribe() method and MessageListener type.
+  - ChatStore now notifies all subscribers when new messages are sent to a conversation.
+  - Added unsubscribe functionality to prevent memory leaks.
+  - Tests validate single/multiple subscribers and unsubscribe behavior.
+  - All 6 tests pass, types check successfully.
+  - Note: This provides the foundation for real-time UI updates. In production, would need WebSocket/SSE for cross-client sync.
+  - Next: Consider unread counts or typing indicators.
+

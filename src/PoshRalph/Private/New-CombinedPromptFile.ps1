@@ -12,7 +12,8 @@ function New-CombinedPromptFile {
         [string]$PromptFile
     )
 
-    $tempFile = [System.IO.Path]::GetTempFileName()
+    # Create temp file in current directory instead of system temp
+    $tempFile = Join-Path $PWD ".ralph-prompt-$(Get-Random).tmp"
     $sb = [System.Text.StringBuilder]::new()
 
     [void]$sb.AppendLine((Get-Content -Path $ContextFile -Raw))

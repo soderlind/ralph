@@ -93,7 +93,23 @@ $PSVersionTable.PSVersion
 # Use a custom model
 $env:MODEL = "claude-opus-4.5"
 .\ralph.ps1 -PromptFile prompts/default.txt -PrdFile plans/prd.json -AllowProfile safe -Iterations 10
+
+# Disable streaming (quiet mode)
+.\ralph.ps1 -PromptFile prompts/default.txt -PrdFile plans/prd.json -AllowProfile safe -Iterations 10 -NoStream
 ```
+
+**Output:** Ralph displays the model and cost at startup:
+```
+Ralph Loop Configuration
+=========================
+Model:      claude-haiku-4.5
+Cost:       0.33x
+Iterations: 10
+=========================
+```
+Cost is color-coded: **Green** (free), **Yellow** (0.33x), **White** (1.0x), **Red** (3.0x)
+
+**Streaming:** By default, copilot output streams in real-time so you can see what's happening. Use `-NoStream` for quiet mode.
 
 ### Single Test Run
 
@@ -103,6 +119,9 @@ $env:MODEL = "claude-opus-4.5"
 
 # Run with verbose output
 .\ralph-once.ps1 -PromptFile prompts/default.txt -AllowProfile safe -Verbose
+
+# Disable streaming (quiet mode)
+.\ralph-once.ps1 -PromptFile prompts/default.txt -AllowProfile safe -NoStream
 ```
 
 ### Show Help
@@ -121,11 +140,34 @@ $env:MODEL = "claude-opus-4.5"
 
 ### Choose a Model
 
-Set the `MODEL` environment variable (default: `gpt-5`):
+You can specify a model using the `-Model` parameter or the `MODEL` environment variable:
 
 ```powershell
+# List all available models
+.\ralph.ps1 -ListModels
+
+# Use a specific model with parameter
+.\ralph.ps1 -Model claude-haiku-4.5 -PromptFile prompts/default.txt -PrdFile plans/prd.json -AllowProfile safe -Iterations 10
+
+# Use environment variable
 $env:MODEL = "claude-opus-4.5"
 .\ralph.ps1 -PromptFile prompts/default.txt -PrdFile plans/prd.json -AllowProfile safe -Iterations 10
+```
+
+**Available models** (relative cost):
+- **Free**: `gpt-5-mini`, `gpt-4.1`
+- **Fast/Cheap (0.33x)**: `claude-haiku-4.5`, `gpt-5.1-codex-mini`
+- **Standard (1.0x)**: `claude-sonnet-4.5` (default), and most others
+- **Premium (3.0x)**: `claude-opus-4.5`
+
+**Update model list from copilot CLI:**
+
+```powershell
+# Update the model list when new models are available
+.\Update-ModelList.ps1
+
+# Preview changes without applying
+.\Update-ModelList.ps1 -DryRun
 ```
 
 ### Define Your Work Items
@@ -184,16 +226,25 @@ Runs Copilot up to N iterations. Stops early on `<promise>COMPLETE</promise>`.
 | `-AllowProfile <name>`   | Permission profile (see below)       | —                     |
 | `-AllowTools <spec>`     | Allow specific tool (repeatable)     | —                     |
 | `-DenyTools <spec>`      | Deny specific tool (repeatable)      | —                     |
+| `-Model <model>`         | AI model to use                      | `claude-sonnet-4.5`   |
+| `-NoStream`              | Disable streaming (quiet mode)       | —                     |
 | `-Iterations <N>`        | Number of iterations (required)      | —                     |
 | `-Verbose`               | Show verbose output                  | —                     |
 | `-Help`                  | Show help                            | —                     |
+| `-ListModels`            | List available models and costs      | —                     |
 
 **Examples:**
 
 ```powershell
 .\ralph.ps1 -PromptFile prompts/default.txt -PrdFile plans/prd.json -AllowProfile safe -Iterations 10
+
+# Use a faster/cheaper model
+.\ralph.ps1 -Model claude-haiku-4.5 -PromptFile prompts/default.txt -PrdFile plans/prd.json -AllowProfile safe -Iterations 10
+
+# With verbose output
 .\ralph.ps1 -PromptFile prompts/wp.txt -AllowProfile safe -Iterations 10 -Verbose
 
+# Environment variable override
 $env:MODEL = "claude-opus-4.5"
 .\ralph.ps1 -PromptFile prompts/default.txt -PrdFile plans/prd.json -AllowProfile safe -Iterations 10
 ```
@@ -214,8 +265,14 @@ Same as `ralph.ps1` except no `-Iterations` parameter.
 
 ```powershell
 .\ralph-once.ps1 -PromptFile prompts/default.txt -PrdFile plans/prd.json -AllowProfile safe
+
+# Use a specific model
+.\ralph-once.ps1 -Model gpt-5-mini -PromptFile prompts/default.txt -PrdFile plans/prd.json -AllowProfile safe
+
+# With verbose output
 .\ralph-once.ps1 -PromptFile prompts/wp.txt -AllowProfile locked -Verbose
 
+# Environment variable override
 $env:MODEL = "claude-opus-4.5"
 .\ralph-once.ps1 -PromptFile prompts/default.txt -PrdFile plans/prd.json -AllowProfile safe
 ```
@@ -238,9 +295,9 @@ $env:MODEL = "claude-opus-4.5"
 
 ### Environment Variables
 
-| Variable | Description        | Default   |
-|----------|--------------------|-----------|
-| `MODEL`  | Model to use       | `gpt-5` |
+| Variable | Description        | Default              |
+|----------|--------------------|----------------------|
+| `MODEL`  | Model to use       | `claude-sonnet-4.5`  |
 
 ---
 
@@ -281,6 +338,7 @@ pwsh -File ./ralph.ps1 -PromptFile prompts/default.txt -PrdFile plans/prd.json -
 ├── progress.txt               # Running log
 ├── ralph.ps1                  # Looped runner (PowerShell)
 ├── ralph-once.ps1             # Single-run script (PowerShell)
+├── Update-ModelList.ps1       # Update model list from copilot CLI
 ├── ralph.sh                   # Legacy bash looped runner
 └── ralph-once.sh              # Legacy bash single-run script
 ```

@@ -72,7 +72,31 @@ param(
     [int]$Iterations,
 
     [Parameter(Mandatory = $false)]
-    [switch]$Help
+    [ValidateSet(
+        
+        'claude-sonnet-4.5',
+        'claude-haiku-4.5',
+        'claude-opus-4.5',
+        'claude-sonnet-4',
+        'gpt-5.2-codex',
+        'gpt-5.1-codex-max',
+        'gpt-5.1-codex',
+        'gpt-5.2',
+        'gpt-5.1',
+        'gpt-5',
+        'gpt-5.1-codex-mini',
+        'gpt-5-mini',
+        'gpt-4.1',
+        'gemini-3-pro-preview'
+    
+    )]
+    [string]$Model,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$Help,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$ListModels
 )
 
 $ErrorActionPreference = 'Stop'
@@ -81,7 +105,7 @@ $RALPH_VERSION = "1.1.0"
 function Show-Usage {
     @"
 Usage:
-  .\ralph.ps1 -PromptFile <file> [-PrdFile <file>] [-Skill <a[,b,...]>] [-AllowProfile <safe|dev|locked>] [-AllowTools <toolSpec1>,<toolSpec2>,...] [-DenyTools <toolSpec1>,...] -Iterations <N>
+  .\ralph.ps1 -PromptFile <file> [-PrdFile <file>] [-Skill <a[,b,...]>] [-AllowProfile <safe|dev|locked>] [-AllowTools <toolSpec1>,<toolSpec2>,...] [-DenyTools <toolSpec1>,...] [-Model <model>] -Iterations <N>
 
 Options:
   -PromptFile <file>           Load prompt text from file (required).
@@ -90,8 +114,11 @@ Options:
   -AllowProfile <name>         Tool permission profile: safe | dev | locked.
   -AllowTools <spec1>,<spec2>  Allow specific tools (comma-separated array). Example: -AllowTools write,'shell(git:*)'
   -DenyTools <spec1>,<spec2>   Deny specific tools (comma-separated array). Example: -DenyTools 'shell(rm)','shell(npm)'
+  -Model <model>               AI model to use (default: claude-sonnet-4.5). Use -ListModels to see all options.
+  -NoStream                    Disable streaming output (quiet mode). By default, output streams in real-time.
   -Iterations <N>              Number of iterations to run (must be >= 1).
   -Help                        Show this help.
+  -ListModels                  List all available models with their costs.
 
 Notes:
   - You must pass -AllowProfile or at least one -AllowTools.
@@ -99,9 +126,65 @@ Notes:
 "@
 }
 
+function Show-Models {
+    @"
+Available Models (cost relative to Claude Sonnet 4.5):
+
+  1. claude-sonnet-4.5         1.0x  (default)
+  2. claude-haiku-4.5          0.33x (fast/cheap)
+  3. claude-opus-4.5           3.0x  (premium)
+  4. claude-sonnet-4           1.0x
+  5. gpt-5.2-codex             1.0x
+  6. gpt-5.1-codex-max         1.0x
+  7. gpt-5.1-codex             1.0x
+  8. gpt-5.2                   1.0x
+  9. gpt-5.1                   1.0x
+ 10. gpt-5                     1.0x
+ 11. gpt-5.1-codex-mini        0.33x (fast/cheap)
+ 12. gpt-5-mini                0.0x  (free)
+ 13. gpt-4.1                   0.0x  (free)
+ 14. gemini-3-pro-preview      1.0x
+
+Usage: .\ralph.ps1 -Model <model-name> ...
+Example: .\ralph.ps1 -Model claude-haiku-4.5 -PromptFile prompts/default.txt -AllowProfile safe -Iterations 10
+"@
+}
+
+function Get-ModelCost {
+    param([string]$Model)
+    
+    $costs = @{
+        'claude-sonnet-4.5' = '1.0x'
+        'claude-haiku-4.5' = '0.33x'
+        'claude-opus-4.5' = '3.0x'
+        'claude-sonnet-4' = '1.0x'
+        'gpt-5.2-codex' = '1.0x'
+        'gpt-5.1-codex-max' = '1.0x'
+        'gpt-5.1-codex' = '1.0x'
+        'gpt-5.2' = '1.0x'
+        'gpt-5.1' = '1.0x'
+        'gpt-5' = '1.0x'
+        'gpt-5.1-codex-mini' = '0.33x'
+        'gpt-5-mini' = 'free'
+        'gpt-4.1' = 'free'
+        'gemini-3-pro-preview' = '1.0x'
+    }
+    
+    if ($costs.ContainsKey($Model)) {
+        return $costs[$Model]
+    }
+    return 'unknown'
+}
+
 # Show help if requested
 if ($Help) {
     Show-Usage
+    exit 0
+}
+
+# Show models if requested
+if ($ListModels) {
+    Show-Models
     exit 0
 }
 
@@ -175,6 +258,33 @@ if ($DenyTools -and $DenyTools.Count -gt 0) {
     $invokeParams['DenyTools'] = $DenyTools
 }
 
+if (-not [string]::IsNullOrWhiteSpace($Model)) {
+    $invokeParams['Model'] = $Model
+}
+
+if ($NoStream) {
+    $invokeParams['NoStream'] = $true
+}
+
+# Determine effective model
+$effectiveModel = if ($Model) { 
+    $Model 
+} elseif ($env:MODEL) { 
+    $env:MODEL 
+} else { 
+    'claude-sonnet-4.5' 
+}
+
+$modelCost = Get-ModelCost -Model $effectiveModel
+
+# Display run configuration
+Write-Host "`nRalph Loop Configuration" -ForegroundColor Cyan
+Write-Host "=========================" -ForegroundColor Cyan
+Write-Host "Model:      $effectiveModel" -ForegroundColor White
+Write-Host "Cost:       $modelCost" -ForegroundColor $(if ($modelCost -eq 'free') { 'Green' } elseif ($modelCost -like '*0.33x*') { 'Yellow' } elseif ($modelCost -like '*3.0x*') { 'Red' } else { 'White' })
+Write-Host "Iterations: $Iterations" -ForegroundColor White
+Write-Host "=========================" -ForegroundColor Cyan
+
 # Run loop
 for ($i = 1; $i -le $Iterations; $i++) {
     Write-Host "`nIteration $i" -ForegroundColor Cyan
@@ -182,15 +292,19 @@ for ($i = 1; $i -le $Iterations; $i++) {
 
     try {
         $result = Invoke-RalphCopilot @invokeParams
-        Write-Output $result.Output
+        
+        # Only write output if in NoStream mode (otherwise already displayed)
+        if ($NoStream -and $result.Output) {
+            Write-Output $result.Output
+        }
 
         if ($result.ExitCode -ne 0) {
             Write-Warning "Copilot exited with status $($result.ExitCode); continuing to next iteration."
             continue
         }
 
-        # Check for completion signal
-        if ($result.Output -like '*<promise>COMPLETE</promise>*') {
+        # Check for completion signal (only relevant in NoStream mode)
+        if ($NoStream -and $result.Output -like '*<promise>COMPLETE</promise>*') {
             Write-Host "PRD complete, exiting." -ForegroundColor Green
             
             # Optional: notify if tt command exists
