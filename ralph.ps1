@@ -22,10 +22,10 @@ Comma-separated list of skills to load from skills/<name>/SKILL.md (optional).
 Tool permission profile: safe, dev, or locked (optional).
 
 .PARAMETER AllowTools
-Array of tool specs to allow (optional, repeatable).
+Array of tool specs to allow (comma-separated). Example: -AllowTools write,'shell(git:*)'
 
 .PARAMETER DenyTools
-Array of tool specs to deny (optional, repeatable).
+Array of tool specs to deny (comma-separated). Example: -DenyTools 'shell(rm)','shell(npm)'
 
 .PARAMETER Iterations
 Number of iterations to run (required, must be >= 1).
@@ -81,21 +81,21 @@ $RALPH_VERSION = "1.1.0"
 function Show-Usage {
     @"
 Usage:
-  .\ralph.ps1 -PromptFile <file> [-PrdFile <file>] [-Skill <a[,b,...]>] [-AllowProfile <safe|dev|locked>] [-AllowTools <toolSpec> ...] [-DenyTools <toolSpec> ...] -Iterations <N>
+  .\ralph.ps1 -PromptFile <file> [-PrdFile <file>] [-Skill <a[,b,...]>] [-AllowProfile <safe|dev|locked>] [-AllowTools <toolSpec1>,<toolSpec2>,...] [-DenyTools <toolSpec1>,...] -Iterations <N>
 
 Options:
   -PromptFile <file>           Load prompt text from file (required).
   -PrdFile <file>              Optionally attach a PRD JSON file.
   -Skill <a[,b,...]>           Prepend one or more skills from skills/<name>/SKILL.md (comma-separated).
   -AllowProfile <name>         Tool permission profile: safe | dev | locked.
-  -AllowTools <toolSpec>       Allow a specific tool (repeatable). Example: -AllowTools write
-                               Use quotes if the spec includes spaces: -AllowTools 'shell(git push)'
-  -DenyTools <toolSpec>        Deny a specific tool (repeatable). Example: -DenyTools 'shell(rm)'
+  -AllowTools <spec1>,<spec2>  Allow specific tools (comma-separated array). Example: -AllowTools write,'shell(git:*)'
+  -DenyTools <spec1>,<spec2>   Deny specific tools (comma-separated array). Example: -DenyTools 'shell(rm)','shell(npm)'
   -Iterations <N>              Number of iterations to run (must be >= 1).
   -Help                        Show this help.
 
 Notes:
   - You must pass -AllowProfile or at least one -AllowTools.
+  - For array parameters, use comma-separated values: -AllowTools tool1,tool2,tool3
 "@
 }
 

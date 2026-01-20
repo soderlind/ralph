@@ -48,7 +48,8 @@ function Invoke-RalphCopilot {
         [string[]]$Skills,
 
         [Parameter(Mandatory = $false)]
-        [ValidateSet('dev', 'safe', 'locked')]
+        [AllowEmptyString()]
+        [ValidateSet('dev', 'safe', 'locked', '')]
         [string]$AllowProfile,
 
         [Parameter(Mandatory = $false)]
