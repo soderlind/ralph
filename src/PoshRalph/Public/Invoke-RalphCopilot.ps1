@@ -26,7 +26,7 @@ function Invoke-RalphCopilot {
     Array of tool specs to deny (optional, repeatable).
     
     .PARAMETER Model
-    Model to use for Copilot (defaults to gpt-5.2 or $env:MODEL).
+    Model to use for Copilot (defaults to gpt-5 or $env:MODEL).
     
     .EXAMPLE
     Invoke-RalphCopilot -PromptFile "prompts/default.txt" -AllowProfile safe
@@ -59,7 +59,7 @@ function Invoke-RalphCopilot {
         [string[]]$DenyTools,
 
         [Parameter(Mandatory = $false)]
-        [string]$Model = 'gpt-5.2'
+        [string]$Model = 'gpt-5'
     )
 
     Write-Verbose "Starting Ralph Copilot invocation"

@@ -121,7 +121,7 @@ $env:MODEL = "claude-opus-4.5"
 
 ### Choose a Model
 
-Set the `MODEL` environment variable (default: `gpt-5.2`):
+Set the `MODEL` environment variable (default: `gpt-5`):
 
 ```powershell
 $env:MODEL = "claude-opus-4.5"
@@ -240,7 +240,7 @@ $env:MODEL = "claude-opus-4.5"
 
 | Variable | Description        | Default   |
 |----------|--------------------|-----------|
-| `MODEL`  | Model to use       | `gpt-5.2` |
+| `MODEL`  | Model to use       | `gpt-5` |
 
 ---
 
