@@ -7,7 +7,7 @@
     RootModule = 'PoshRalph.psm1'
 
     # Version number of this module.
-    ModuleVersion = '1.1.0'
+    ModuleVersion = '1.3.0'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Core')
@@ -25,7 +25,7 @@
     Copyright = '(c) Snellingen. All rights reserved.'
 
     # Description of the functionality provided by this module
-    Description = 'PowerShell implementation of the Ralph loop CLI for running GitHub Copilot in iterations'
+    Description = 'PowerShell module for running the Ralph Copilot loop with prompts, PRDs, and skills'
 
     # Minimum version of the PowerShell engine required by this module
     PowerShellVersion = '7.0'

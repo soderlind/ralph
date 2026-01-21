@@ -77,6 +77,24 @@ $PSVersionTable.PSVersion
 .\ralph-once.ps1 -Help
 ```
 
+### Install as a PowerShell module (per-user)
+
+```powershell
+$src = "C:\\Users\\$env:USERNAME\\Git\\posh-ralph\\src\\PoshRalph"
+$dest = "$HOME\\Documents\\PowerShell\\Modules\\PoshRalph\\1.3.0"
+New-Item -ItemType Directory -Force -Path $dest | Out-Null
+Copy-Item "$src\\*" $dest -Recurse -Force
+Import-Module PoshRalph -Force
+Get-Command -Module PoshRalph
+```
+
+Then, in any repo, scaffold the required files and run Ralph:
+
+```powershell
+pwsh -File ./Setup-RalphProject.ps1
+Invoke-RalphCopilot -PromptFile "prompts/default.txt" -PrdFile "plans/prd.json" -AllowProfile safe
+```
+
 ---
 
 ## Usage

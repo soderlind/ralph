@@ -19,6 +19,15 @@ function New-ContextFile {
     $tempFile = Join-Path $PWD ".ralph-context-$(Get-Random).tmp"
     $sb = [System.Text.StringBuilder]::new()
 
+    # Skills root (prefer /skills, fall back to /test/skills for backward compatibility)
+    $skillsRoot = Join-Path $PWD "skills"
+    if (-not (Test-Path $skillsRoot -PathType Container)) {
+        $legacySkillsRoot = Join-Path $PWD "test" | Join-Path -ChildPath "skills"
+        if (Test-Path $legacySkillsRoot -PathType Container) {
+            $skillsRoot = $legacySkillsRoot
+        }
+    }
+
     [void]$sb.AppendLine("# Context")
     [void]$sb.AppendLine()
 
@@ -30,7 +39,7 @@ function New-ContextFile {
             if ([string]::IsNullOrWhiteSpace($skillTrimmed)) {
                 continue
             }
-            $skillFile = Join-Path $PWD "skills" $skillTrimmed "SKILL.md"
+            $skillFile = Join-Path $skillsRoot $skillTrimmed "SKILL.md"
             if (-not (Test-Path $skillFile -PathType Leaf)) {
                 throw "Error: skill not found/readable: $skillFile"
             }
