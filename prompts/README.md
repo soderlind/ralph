@@ -1,78 +1,152 @@
 # Sample prompts
 
-This folder contains example prompt files to use with `--prompt`.
+This folder contains example prompt files to use with `--prompt-prefix`.
 
 ## Usage
 
-Looped runner:
+Looped runner (multiple iterations):
 
-Runs multiple iterations (good for actually making progress on a PRD).
-
-```bash
-./ralph.sh --prompt prompts/default.txt --allow-profile dev 10
-```
-
-Single run:
-
-Runs exactly one iteration (good for testing your tool permissions and prompt wording).
+Runs up to N iterations. Good for making real progress on a PRD.
 
 ```bash
-./ralph-once.sh --prompt prompts/default.txt --allow-profile dev
+./ralph.py --allow-profile safe --max-iterations 10
 ```
 
-## Examples (per prompt)
+Single run (test mode):
 
-Default prompt + PRD:
-Runs the standard workflow: attach your PRD and let Ralph iterate safely (write + limited shell).
-
-Credit: [Ship working code while you sleep (video)](https://www.youtube.com/watch?v=_IK18goX4X8)
+Runs exactly one iteration. Good for testing prompt wording and tool permissions.
 
 ```bash
-./ralph.sh --prompt prompts/default.txt --prd plans/prd.json --allow-profile safe 10
+./ralph.py --once --allow-profile safe
 ```
 
-Write-only prompt:
-Use this when you want Copilot to only edit files (no shell access).
+## The Default Prompt
+
+The default prompt is built into `ralph.py`. It handles:
+
+1. **Reading context** — Checks progress.txt and attached PRD
+2. **Picking a feature** — Finds the highest-priority incomplete item
+3. **Implementing** — Writes code for that feature
+4. **Verifying** — Runs pnpm typecheck and pnpm test
+5. **Updating PRD** — Marks feature as `passes: true` with notes
+6. **Committing** — Creates a git commit
+7. **Repeating** — Until all features are done or max iterations hit
+
+### Example: Default workflow with PRD
 
 ```bash
-./ralph.sh --prompt prompts/safe-write-only.txt --allow-profile locked 10
+./ralph.py --allow-profile safe --max-iterations 10
 ```
 
-WordPress plugin agent:
-Targets WordPress development workflows; attaches a PRD but keeps tool access constrained by the harness/profile.
+## Custom Prompts
+
+Override the default prompt with `--prompt-prefix`:
 
 ```bash
-./ralph.sh --prompt prompts/wordpress-plugin-agent.txt --prd plans/prd.json --allow-profile safe 10
+./ralph.py --prompt-prefix prompts/custom.txt --allow-profile safe --max-iterations 10
 ```
 
-Pest coverage:
-Iterates on adding ONE meaningful test per iteration; typically you don't need a PRD for this style of task.
+Your custom prompt should:
 
-Credits: https://gist.github.com/mpociot/914c1871e6faeb350d2fda09ecb2a18f 
+- Reference `progress.txt` (always available)
+- Parse the PRD JSON if you provide one
+- Output clear progress updates
+- Use structured headings for readability
+
+Example custom prompt:
+
+```
+You are a code agent. Work on the next unfinished task in the PRD.
+
+## Context
+- Read progress.txt to see what's been built
+- Check the PRD to understand requirements
+- Implement ONE feature per iteration
+
+## Steps
+1. Pick the highest-priority incomplete feature
+2. Write code that passes tests
+3. Update the PRD (mark as passes: true)
+4. Append progress notes to progress.txt
+5. Make a git commit
+
+## Important
+- Always run `pnpm typecheck` before committing
+- Only work on ONE feature per iteration
+- Be clear about architectural decisions
+```
+
+## Tool Permissions
+
+Tool access is controlled by `--allow-profile`, not the prompt file:
+
+Safe mode (recommended):
 
 ```bash
-./ralph.sh --prompt prompts/pest-coverage.txt --allow-profile safe 10
+./ralph.py --allow-profile safe --max-iterations 10
 ```
 
-## Tool permissions
-
-Tool permissions are controlled by the scripts via flags (not by prompt file content).
-
-Examples:
-
-Single-run, write-only:
-Useful when you want to validate the prompt behavior without letting the agent run any shell commands.
+Write-only mode (no shell):
 
 ```bash
-./ralph-once.sh --prompt prompts/safe-write-only.txt \
-  --allow-profile locked
+./ralph.py --allow-profile locked --max-iterations 10
 ```
 
-Looped run with explicit deny:
-Allows everything in the `dev` profile, but still blocks a dangerous command.
+Dev mode (full access):
 
 ```bash
-./ralph.sh --prompt prompts/default.txt --allow-profile dev \
-  --deny-tools 'shell(git push)' \
-  10
+./ralph.py --allow-profile dev --max-iterations 10
 ```
+
+Custom permissions:
+
+```bash
+./ralph.py --allow-tools write --allow-tools 'shell(git:*)' --max-iterations 10
+```
+
+## Example Workflows
+
+### Workflow 1: Start from scratch
+
+```bash
+# Test with 1 iteration (validate prompt and permissions)
+./ralph.py --once --allow-profile safe
+
+# Full run if test looks good
+./ralph.py --allow-profile safe --max-iterations 10
+
+# Check progress
+cat progress.txt | tail -30
+```
+
+### Workflow 2: Custom features
+
+```bash
+# Create a custom PRD
+cat > plans/prd-myapp.json << 'EOF'
+[
+  {
+    "id": "feat-1",
+    "category": "functional",
+    "priority": 1,
+    "description": "Build my feature",
+    "steps": ["Step 1", "Step 2"],
+    "passes": false,
+    "dependsOn": []
+  }
+]
+EOF
+
+# Run with custom PRD
+./ralph.py --prd plans/prd-myapp.json --allow-profile safe --max-iterations 5
+```
+
+### Workflow 3: Iterative development
+
+For projects that are already started, use `--allow-dirty` to keep uncommitted changes:
+
+```bash
+./ralph.py --allow-dirty --allow-profile safe --max-iterations 10
+```
+
+This lets you keep local changes while Ralph makes its edits.

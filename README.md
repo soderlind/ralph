@@ -18,11 +18,11 @@ cd ralph
 
 # Add your work items to plans/prd.json
 
-# Test with a single run
-./ralph-once.sh --prompt prompts/default.txt --prd plans/prd.json --allow-profile safe
+# Test with a single iteration
+./ralph.py --allow-profile safe --max-iterations 1
 
-# Run multiple iterations
-./ralph.sh --prompt prompts/default.txt --prd plans/prd.json --allow-profile safe 10
+# Run multiple iterations (iterative mode - RECOMMENDED)
+./ralph.py --allow-profile safe --allow-dirty --max-iterations 10
 ```
 
 Check `progress.txt` for a log of what was done.
@@ -61,7 +61,7 @@ https://github.com/user-attachments/assets/28206ee1-8dad-4871-aef5-1a9f24625dba
 Set the `MODEL` environment variable (default: `gpt-5.2`):
 
 ```bash
-MODEL=claude-opus-4.5 ./ralph.sh --prompt prompts/default.txt --prd plans/prd.json --allow-profile safe 10
+MODEL=claude-opus-4.5 ./ralph.py --allow-profile safe --max-iterations 10
 ```
 
 ### Define Your Work Items
@@ -90,57 +90,45 @@ See the [`plans/`](plans/) folder for more context.
 
 ### Use Custom Prompts
 
-Prompts are required. Use any prompt file:
+Prompts can be customized via `--prompt-prefix`:
 
 ```bash
-./ralph.sh --prompt prompts/my-prompt.txt --allow-profile safe 10
+./ralph.py --prompt-prefix prompts/my-prompt.txt --allow-profile safe --max-iterations 10
 ```
 
-> **Note:** Custom prompts require `--allow-profile` or `--allow-tools`.
+> **Note:** Custom tools require `--allow-profile` or `--allow-tools`.
 
 ---
 
 ## Command Reference
 
-### `ralph.sh` — Looped Runner
+### `ralph.py` — Looped Runner
 
 Runs Copilot up to N iterations. Stops early on `<promise>COMPLETE</promise>`.
 
 ```bash
-./ralph.sh [options] <iterations>
+./ralph.py [options]
 ```
 
 **Examples:**
 
 ```bash
-./ralph.sh --prompt prompts/default.txt --prd plans/prd.json --allow-profile safe 10
-./ralph.sh --prompt prompts/wp.txt --allow-profile safe 10
-MODEL=claude-opus-4.5 ./ralph.sh --prompt prompts/default.txt --prd plans/prd.json --allow-profile safe 10
-```
-
-### `ralph-once.sh` — Single Run
-
-Runs Copilot once. Great for testing.
-
-```bash
-./ralph-once.sh [options]
-```
-
-**Examples:**
-
-```bash
-./ralph-once.sh --prompt prompts/default.txt --prd plans/prd.json --allow-profile safe
-./ralph-once.sh --prompt prompts/wp.txt --allow-profile locked
-MODEL=claude-opus-4.5 ./ralph-once.sh --prompt prompts/default.txt --prd plans/prd.json --allow-profile safe
+./ralph.py --allow-profile safe --max-iterations 10
+./ralph.py --allow-profile safe --allow-dirty --max-iterations 10
+./ralph.py --once --allow-profile safe
+./ralph.py --prompt-prefix prompts/custom.txt --allow-profile safe --max-iterations 10
+MODEL=claude-opus-4.5 ./ralph.py --allow-profile safe --max-iterations 10
 ```
 
 ### Options
 
 | Option                   | Description                          | Default               |
 |--------------------------|--------------------------------------|-----------------------|
-| `--prompt <file>`        | Load prompt from file (required)     | —                     |
-| `--prd <file>`           | Optionally attach a PRD JSON file    | —                     |
-| `--skill <a[,b,...]>`    | Prepend skills from `skills/<name>/SKILL.md` | —              |
+| `--once`                 | Single iteration mode                | Loop mode             |
+| `--allow-dirty`          | Allow uncommitted changes (iterative)| Clean repo enforced   |
+| `--prompt-prefix <file>` | Load custom prompt prefix            | Built-in prompt       |
+| `--prd <file>`           | Path to PRD JSON file                | `plans/prd.json`      |
+| `--max-iterations <n>`   | Maximum iterations (loop mode)       | 10                    |
 | `--allow-profile <name>` | Permission profile (see below)       | —                     |
 | `--allow-tools <spec>`   | Allow specific tool (repeatable)     | —                     |
 | `--deny-tools <spec>`    | Deny specific tool (repeatable)      | —                     |
@@ -165,7 +153,7 @@ MODEL=claude-opus-4.5 ./ralph-once.sh --prompt prompts/default.txt --prd plans/p
 **Custom tools:** If you pass `--allow-tools`, it replaces the profile defaults:
 
 ```bash
-./ralph.sh --prompt prompts/wp.txt --allow-tools write --allow-tools 'shell(composer:*)' 10
+./ralph.py --allow-tools write --allow-tools 'shell(composer:*)' --allow-profile safe --max-iterations 10
 ```
 
 ---
@@ -181,8 +169,8 @@ git worktree add ../ralph-demo -b ralph-demo
 cd ../ralph-demo
 
 # Run
-./ralph-once.sh --prompt prompts/default.txt --prd plans/prd.json --allow-profile safe
-./ralph.sh --prompt prompts/default.txt --prd plans/prd.json --allow-profile safe 10
+./ralph.py --allow-profile safe --max-iterations 1
+./ralph.py --allow-profile safe --allow-dirty --max-iterations 10
 
 # Inspect
 git log --oneline -20
@@ -201,9 +189,9 @@ cd .. && git worktree remove ralph-demo && git branch -D ralph-demo
 ├── plans/prd.json        # Your work items
 ├── prompts/default.txt   # Example prompt
 ├── progress.txt          # Running log
-├── ralph.sh              # Looped runner
-├── ralph-once.sh         # Single-run script
-└── test/run-prompts.sh   # Test harness
+├── ralph.py              # Main runner (Python)
+├── .ralph/state.json     # Iteration state
+└── test/                 # Test harness
 ```
 
 ---
@@ -240,20 +228,17 @@ Logs: `test/log/`
 
 ## Copilot CLI Notes
 
-Ralph is just a thin wrapper around the Copilot CLI. The important flags it relies on are:
+Ralph is a Python-based wrapper around the Copilot CLI. The important flags it relies on are:
 
-### Context attachment (`-p "@file ..."`)
+### Context attachment
 
-Ralph passes context to Copilot by attaching a file directly in the prompt
-using Copilot’s `@file` syntax (for example: `-p "@.ralph-context... Follow the attached prompt."`).
-
-Ralph builds one temporary “attachment” file per iteration that typically contains:
+Ralph passes context to Copilot via inline prompts. Ralph builds context per iteration that typically contains:
 
 - `progress.txt` (always)
 - PRD JSON (only if you pass `--prd <file>`)
-- The selected prompt file (from `--prompt <file>`)
+- Custom prompt prefix (if `--prompt-prefix <file>` is provided)
 
-This keeps the agent’s input structured and avoids inlining large blobs into command-line flags.
+This keeps the agent's input structured and clean.
 
 ### Tool permissions (`--allow-*` / `--deny-*`)
 
@@ -267,30 +252,7 @@ For shell tools, prefer the pattern form `shell(cmd:*)` (for example `shell(git:
 
 Ralph always denies a small set of dangerous commands (currently `shell(rm)` and `shell(git push)`).
 
-### Reliability niceties
 
-- Single attachment workaround: Ralph combines PRD + `progress.txt` into one context file to avoid Copilot CLI issues with multiple `@file` attachments.
-- Pseudo-TTY capture in the harness: `test/run-prompts.sh` uses `script(1)` to capture output even when Copilot writes directly to the TTY.
-
-### Skills (`--skill`)
-
-[Skills](https://agentskills.io/home) let you prepend reusable instructions into the same attached context file.
-Pass a comma-separated list (repeatable):
-
-- `--skill wp-block-development` loads `skills/wp-block-development/SKILL.md`
-- `--skill aa,bb,cc` loads `skills/aa/SKILL.md`, `skills/bb/SKILL.md`, `skills/cc/SKILL.md`
-
-Example:
-
-```bash
-./ralph.sh --prompt prompts/wordpress-plugin-agent.txt \
-  --skill wp-block-development,wp-cli \
-  --prd plans/prd.json \
-  --allow-profile safe \
-  5
-```
-
----
 
 
 ## License

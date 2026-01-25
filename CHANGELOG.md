@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0] - 2026-01-24
+
+### Added
+- `ralph.py` - New Python implementation replacing bash scripts
+- `--once` flag for single iteration mode
+- `--allow-dirty` flag for iterative workflow with uncommitted changes
+- `--prompt-prefix` flag for custom instructions
+- `--prd` flag for custom PRD path
+- State persistence via `.ralph/state.json`
+- Story-based iteration (one story at a time)
+- Better error handling and logging
+- Comprehensive documentation: `RALPH.md`, `RALPH_FEATURES.md`, `RALPH_EXAMPLES.md`, `RALPH_MIGRATION.md`
+
+### Removed
+- `ralph.sh` - Replaced by `ralph.py`
+- `ralph-once.sh` - Replaced by `ralph.py --once`
+- `RALPH_DEPRECATED_SCRIPTS.md` - Documentation of removed scripts
+
+### Fixed
+- Exit status 1 bug - Copilot now executes properly
+- Prompt passing - Uses inline text instead of file references
+- Streaming output - See Copilot work in real-time
+
+### Changed
+- Migrated from bash to Python 3.10+ for cleaner implementation
+- Auto-commit per story implementation
+- Dynamic prompt building from PRD
+- Proper test enforcement
+
 ## [1.1.0] - 2026-01-12
 
 ### Added
