@@ -301,7 +301,7 @@ def call_copilot(
 def main() -> int:
     ap = argparse.ArgumentParser(description="Ralph loop for GitHub Copilot CLI")
     ap.add_argument("--prd", type=Path, default=Path("plans/prd.json"))
-    ap.add_argument("--progress", type=Path, default=Path("progress.txt"))
+    ap.add_argument("--progress", type=Path, default=Path(".ralph/progress.txt"))
     ap.add_argument("--state", type=Path, default=Path(".ralph/state.json"))
     ap.add_argument("--max-iterations", type=int, default=20)
     ap.add_argument(
@@ -507,7 +507,7 @@ def main() -> int:
         
         copilot_out = call_copilot(args.copilot_bin, prompt, copilot_args, repo_dir)
         
-        log("Copilot run complete; appending transcript to progress.txt")
+        log("Copilot run complete; appending transcript to .ralph/progress.txt")
         append_progress(
             args.progress,
             f"[{now_iso()}] ITERATION {i} STORY {story.get('id')} ({story.get('description')})\n"
