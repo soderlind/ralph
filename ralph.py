@@ -116,9 +116,9 @@ def invoke_copilot(
 
 def cmd_brd_prd(args: argparse.Namespace) -> int:
     """
-    Handle 'ralph brd' command.
+    Handle 'ralph brd-prd' command.
     
-    Reads BRD markdown file, invokes brd-to-prd skill, saves PRD JSON.
+    Reads BRD markdown file, invokes brd-to-prd skill, saves PRD markdown.
     """
     brd_path = Path(args.brd_file)
     
@@ -135,7 +135,7 @@ def cmd_brd_prd(args: argparse.Namespace) -> int:
     brd_content = brd_path.read_text(encoding="utf-8")
     
     # Build task prompt (skill will be loaded by coding agent)
-    task_prompt = f"""Generate a PRD from this BRD file.
+    task_prompt = f"""Generate a PRD (Product Requirements Document) in MARKDOWN format from this BRD.
 
 BRD File: {brd_path}
 
@@ -145,7 +145,17 @@ BRD File: {brd_path}
 
 ---
 
-Output ONLY the PRD JSON (no markdown fences, no extra text)."""
+Output the PRD as clean markdown with proper sections:
+- Overview
+- Jobs To Be Done (JTBD)
+- Acceptance Criteria
+- User Flows
+- Page Flows
+- Technical Constraints
+- Success Metrics
+- Out of Scope
+
+Output ONLY the markdown content (no code fences, no JSON, just markdown)."""
     
     # Invoke Copilot (it loads @brd-to-prd from project scope)
     config = load_config()
@@ -154,51 +164,35 @@ Output ONLY the PRD JSON (no markdown fences, no extra text)."""
     
     response = invoke_copilot(skill_name, task_prompt, model=model)
     
-    # Parse and validate JSON
-    # Strip markdown artifacts and leading characters
+    # Clean response - remove markdown code fences if present
     response_cleaned = response.strip()
-    # Remove leading bullets, asterisks, spaces
     import re
-    response_cleaned = re.sub(r'^[●\*\-\s]+', '', response_cleaned, flags=re.MULTILINE)
-    # Remove markdown code fences
-    if "```json" in response_cleaned:
-        response_cleaned = response_cleaned.split("```json", 1)[1]
+    
+    # Remove markdown code fences (```markdown or ``` at start/end)
+    if response_cleaned.startswith("```markdown"):
+        response_cleaned = response_cleaned.split("```markdown", 1)[1]
+    elif response_cleaned.startswith("```md"):
+        response_cleaned = response_cleaned.split("```md", 1)[1]
+    elif response_cleaned.startswith("```"):
+        response_cleaned = response_cleaned.split("```", 1)[1]
+    
     if response_cleaned.endswith("```"):
         response_cleaned = response_cleaned.rsplit("```", 1)[0]
+    
     response_cleaned = response_cleaned.strip()
     
-    try:
-        prd_data = json.loads(response_cleaned)
-    except json.JSONDecodeError as e:
-        log(f"⚠️  Response is not valid JSON, saving as-is")
-        log(f"Parse error: {e}")
-        # Save raw response for debugging
-        output_path = Path(args.output or "plans/generated-prd.txt")
-        output_path.write_text(response, encoding="utf-8")
-        log(f"💾 Saved raw response to: {output_path}")
-        log("⚠️  Please manually convert to JSON or re-run")
-        return 1
-    
-    # Save PRD
-    output_path = Path(args.output or "plans/generated-prd.json")
+    # Save PRD as markdown
+    output_path = Path(args.output or config.get("paths", {}).get("prd", "plans/generated-prd.md"))
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
-        json.dumps(prd_data, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8"
-    )
+    output_path.write_text(response_cleaned + "\n", encoding="utf-8")
     
     log(f"✅ PRD generated successfully!")
     log(f"💾 Saved to: {output_path}")
     log("")
-    log("📋 PRD Summary:")
-    log(f"  - Project: {prd_data.get('project_name', 'Unknown')}")
-    log(f"  - JTBD: {len(prd_data.get('jtbd', []))} statements")
-    log(f"  - Acceptance Criteria: {len(prd_data.get('acceptance_criteria', []))}")
-    log(f"  - User Flows: {len(prd_data.get('user_flows', []))}")
-    log(f"  - Technical Constraints: {len(prd_data.get('technical_constraints', []))}")
+    log("📋 PRD is in markdown format - human-readable and LLM-parseable")
     log("")
     log("👉 Next step: Review the PRD, then run:")
-    log(f"   ralph prd {output_path}")
+    log(f"   ralph prd-tasks {output_path}")
     
     return 0
 

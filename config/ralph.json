@@ -30,7 +30,7 @@
   },
   "paths": {
     "brd": "plans/brd.md",
-    "prd": "plans/prd.json",
+    "prd": "plans/generated-prd.md",
     "tasks": "plans/tasks.json",
     "implementation_log": "docs/implementation-log.md",
     "cleanup_log": "docs/cleanup-log.md",
