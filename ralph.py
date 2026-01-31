@@ -62,18 +62,20 @@ def load_skill(skill_name: str) -> str:
 
 
 def invoke_copilot(
-    prompt: str,
+    skill_name: str,
+    task_prompt: str,
     model: Optional[str] = None,
-    temperature: Optional[float] = None,
     **kwargs
 ) -> str:
     """
-    Invoke GitHub Copilot CLI with given prompt.
+    Invoke GitHub Copilot CLI with skill reference.
+    
+    Coding agent will load skill from .copilot/skills/ or .claude/skills/.
     
     Args:
-        prompt: The prompt to send to Copilot
+        skill_name: Name of skill to use (e.g., 'brd-to-prd')
+        task_prompt: The task/context for the skill to process
         model: Optional model override
-        temperature: Optional temperature override
         
     Returns:
         Copilot's response as string
@@ -84,15 +86,18 @@ def invoke_copilot(
     if model is None:
         model = config.get("skills", {}).get("default_model", "claude-sonnet-4.5")
     
+    # Build prompt with skill reference (coding agent loads it)
+    full_prompt = f"@{skill_name} {task_prompt}"
+    
     cmd = [
         "copilot",
         "--model", model,
         "--no-color",
         "--stream", "off",
-        "-p", prompt
+        "-p", full_prompt
     ]
     
-    log(f"🤖 Invoking Copilot (model: {model})...")
+    log(f"🤖 Invoking Copilot with @{skill_name} (model: {model})...")
     
     try:
         result = subprocess.run(
@@ -127,33 +132,33 @@ def cmd_brd(args: argparse.Namespace) -> int:
         log(f"❌ BRD file not found: {brd_path}")
         return 1
     
+    # Verify skill exists in project scope
+    skill_name = "brd-to-prd"
+    if not verify_skill_exists(skill_name):
+        return 1
+    
     log(f"📖 Reading BRD: {brd_path}")
     brd_content = brd_path.read_text(encoding="utf-8")
     
-    # Load skill
-    log("🎯 Loading brd-to-prd skill...")
-    skill_content = load_skill("brd-to-prd")
-    
-    # Build prompt
-    prompt = f"""{skill_content}
+    # Build task prompt (skill will be loaded by coding agent)
+    task_prompt = f"""Generate a PRD from this BRD file.
+
+BRD File: {brd_path}
 
 ---
-
-## BRD Input
 
 {brd_content}
 
 ---
 
-Please generate the PRD JSON based on the BRD above. Output ONLY the JSON (no markdown fences, no extra text).
-"""
+Output ONLY the PRD JSON (no markdown fences, no extra text)."""
     
-    # Invoke Copilot
+    # Invoke Copilot (it loads @brd-to-prd from project scope)
     config = load_config()
     skill_config = config.get("skills", {}).get("brd_to_prd", {})
     model = skill_config.get("model", "claude-sonnet-4.5")
     
-    response = invoke_copilot(prompt, model=model)
+    response = invoke_copilot(skill_name, task_prompt, model=model)
     
     # Parse and validate JSON
     # Strip markdown artifacts and leading characters
