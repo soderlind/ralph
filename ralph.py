@@ -34,31 +34,25 @@ def load_config(config_path: Path = Path("config/ralph.json")) -> Dict[str, Any]
     return json.loads(config_path.read_text(encoding="utf-8"))
 
 
-def load_skill(skill_name: str) -> str:
+def verify_skill_exists(skill_name: str) -> bool:
     """
-    Load skill content from skills/<skill-name>/skill.md
+    Verify that skill exists in project scope (.copilot/skills/ or .claude/skills/).
     
     Args:
         skill_name: Name of skill folder (e.g., 'brd-to-prd')
         
     Returns:
-        Skill markdown content (without frontmatter)
+        True if skill found, False otherwise
     """
-    skill_path = Path(f"skills/{skill_name}/skill.md")
+    copilot_skill = Path(f".copilot/skills/{skill_name}/skill.md")
+    claude_skill = Path(f".claude/skills/{skill_name}/skill.md")
     
-    if not skill_path.exists():
-        log(f"❌ Skill not found: {skill_path}")
-        sys.exit(1)
+    if copilot_skill.exists() or claude_skill.exists():
+        return True
     
-    content = skill_path.read_text(encoding="utf-8")
-    
-    # Strip frontmatter if present (--- ... ---)
-    if content.startswith("---"):
-        parts = content.split("---", 2)
-        if len(parts) >= 3:
-            content = parts[2].strip()
-    
-    return content
+    log(f"❌ Skill '{skill_name}' not found in project scope")
+    log(f"   Run: ./scripts/sync-skills.sh")
+    return False
 
 
 def invoke_copilot(
