@@ -640,61 +640,73 @@ def main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  ralph brd plans/brd.md                    # Generate PRD from BRD
-  ralph prd plans/prd.md                    # Generate tasks from PRD
-  ralph tasks plans/tasks.json              # Create tasks in Vibe Kanban
+  ralph brd-prd plans/brd.md                # Generate PRD from BRD
+  ralph prd-tasks plans/prd.md              # Generate tasks from PRD
+  ralph tasks-kanban plans/tasks.json       # Create tasks in Vibe Kanban
+  ralph run                                 # Start tasks with no dependencies
   ralph review plans/tasks.json             # Review completed tasks
   ralph cleanup                             # Cleanup completed work
 
 Full workflow:
-  1. ralph brd plans/brd.md → generates plans/generated-prd.md
-  2. ralph prd plans/generated-prd.md → generates plans/tasks.json
-  3. ralph tasks plans/tasks.json → creates tasks in Vibe Kanban
-  4. (work on tasks in Vibe Kanban)
-  5. ralph review plans/tasks.json → appends to docs/implementation-log.md
-  6. ralph cleanup → archives, adjusts dependencies, removes worktrees
+  1. ralph brd-prd plans/brd.md → generates plans/generated-prd.md
+  2. ralph prd-tasks plans/generated-prd.md → generates plans/tasks.json
+  3. ralph tasks-kanban plans/tasks.json → creates tasks in Vibe Kanban
+  4. ralph run → starts tasks with no dependencies
+  5. (work on tasks in Vibe Kanban)
+  6. ralph review → reviews completed tasks
+  7. ralph cleanup → archives, adjusts dependencies, removes worktrees
         """
     )
     
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
     
-    # ralph brd
-    brd_parser = subparsers.add_parser(
-        "brd",
+    # ralph brd-prd
+    brd_prd_parser = subparsers.add_parser(
+        "brd-prd",
         help="Generate PRD from BRD"
     )
-    brd_parser.add_argument(
+    brd_prd_parser.add_argument(
         "brd_file",
         help="Path to BRD markdown file (e.g., plans/brd.md)"
     )
-    brd_parser.add_argument(
+    brd_prd_parser.add_argument(
         "-o", "--output",
-        help="Output path for PRD JSON (default: plans/generated-prd.json)"
+        help="Output path for PRD markdown (default: plans/generated-prd.md)"
     )
     
-    # ralph prd
-    prd_parser = subparsers.add_parser(
-        "prd",
+    # ralph prd-tasks
+    prd_tasks_parser = subparsers.add_parser(
+        "prd-tasks",
         help="Generate tasks from PRD"
     )
-    prd_parser.add_argument(
+    prd_tasks_parser.add_argument(
         "prd_file",
-        help="Path to PRD JSON file (e.g., plans/prd.json)"
+        help="Path to PRD markdown file (e.g., plans/prd.md)"
     )
-    prd_parser.add_argument(
+    prd_tasks_parser.add_argument(
         "-o", "--output",
         help="Output path for tasks JSON (default: plans/tasks.json)"
     )
     
-    # ralph tasks
-    tasks_parser = subparsers.add_parser(
-        "tasks",
+    # ralph tasks-kanban
+    tasks_kanban_parser = subparsers.add_parser(
+        "tasks-kanban",
         help="Create tasks in Vibe Kanban via MCP"
     )
-    tasks_parser.add_argument(
+    tasks_kanban_parser.add_argument(
         "tasks_file",
         nargs="?",
         help="Path to tasks JSON file (default: plans/tasks.json)"
+    )
+    
+    # ralph run
+    run_parser = subparsers.add_parser(
+        "run",
+        help="Start tasks with no dependencies in Vibe Kanban"
+    )
+    run_parser.add_argument(
+        "--project-id",
+        help="Optional project ID (uses config if not provided)"
     )
     
     # ralph review
@@ -720,12 +732,14 @@ Full workflow:
         return 1
     
     # Route to command handler
-    if args.command == "brd":
-        return cmd_brd(args)
-    elif args.command == "prd":
-        return cmd_prd(args)
-    elif args.command == "tasks":
-        return cmd_tasks(args)
+    if args.command == "brd-prd":
+        return cmd_brd_prd(args)
+    elif args.command == "prd-tasks":
+        return cmd_prd_tasks(args)
+    elif args.command == "tasks-kanban":
+        return cmd_tasks_kanban(args)
+    elif args.command == "run":
+        return cmd_run(args)
     elif args.command == "review":
         return cmd_review(args)
     elif args.command == "cleanup":

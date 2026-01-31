@@ -1,230 +1,189 @@
-# Ralph SDLC Wrapper - Data Schemas
+# Ralph SDLC Wrapper Architecture
 
-## 1. BRD Schema (Business Requirements Document)
+Complete technical architecture for the Ralph SDLC wrapper integrating with Vibe-Kanban.
 
-**File format**: Markdown (`.md`)
-**Location**: `plans/brd.md`
+## Overview
 
-```markdown
-# Business Requirements Document
+Ralph transforms product development from requirements to implementation using:
+- **Markdown PRDs** (human-readable, LLM-parseable)
+- **Skills** (loaded by coding agent from project scope)
+- **Vibe-Kanban integration** (via prompt-based MCP)
+- **Phase-contextual commands** (brd-prd, prd-tasks, tasks-kanban, run)
 
-## Business Goals
-- Goal 1: [High-level business objective]
-- Goal 2: [What problem are we solving?]
+## Data Flow
 
-## Market Context
-- Target audience: [Who is this for?]
-- Market opportunity: [Why now?]
-- Competitive landscape: [What alternatives exist?]
-
-## High-Level Requirements
-1. Requirement 1: [User-facing capability]
-2. Requirement 2: [Key feature]
-3. Requirement 3: [Integration or constraint]
-
-## Success Metrics
-- Metric 1: [How do we measure success?]
-- Metric 2: [What KPIs matter?]
-
-## Constraints
-- Budget: [Financial constraints]
-- Timeline: [When do we need this?]
-- Technical: [Platform, technology, or infrastructure constraints]
+```
+BRD.md → brd-prd → PRD.md → prd-tasks → tasks.json → tasks-kanban → Vibe Kanban
+                                                                           ↓
+                                                                         run
+                                                                           ↓
+                                                                     Workspace Sessions
 ```
 
----
+## Data Schemas
 
-## 2. PRD Schema (Product Requirements Document)
+### 1. BRD (Business Requirements Document) - Markdown
 
-**File format**: JSON (`.json`)
-**Location**: `plans/prd.json`
+**File**: `plans/*.md`  
+**Format**: Markdown
 
-```json
-{
-  "project_name": "string",
-  "version": "string",
-  "created_at": "ISO 8601 timestamp",
-  "brd_source": "path/to/brd.md",
-  "overview": "string (high-level summary)",
-  "jtbd": [
-    {
-      "persona": "string (e.g., 'End User', 'Admin')",
-      "job": "string (what they want to accomplish)",
-      "outcome": "string (why it matters)"
-    }
-  ],
-  "acceptance_criteria": [
-    {
-      "id": "AC-001",
-      "description": "string",
-      "category": "functional|non-functional|technical"
-    }
-  ],
-  "user_flows": [
-    {
-      "id": "UF-001",
-      "name": "string (e.g., 'User Login Flow')",
-      "steps": [
-        "Step 1: User lands on login page",
-        "Step 2: User enters credentials",
-        "Step 3: System validates and redirects"
-      ],
-      "acceptance_criteria_ids": ["AC-001", "AC-002"]
-    }
-  ],
-  "page_flows": [
-    {
-      "id": "PF-001",
-      "name": "string (e.g., 'Dashboard to Settings')",
-      "pages": [
-        {"page": "Dashboard", "action": "Click settings icon"},
-        {"page": "Settings", "action": "View/edit"}
-      ]
-    }
-  ],
-  "technical_constraints": [
-    {
-      "type": "platform|technology|integration|security|performance",
-      "description": "string",
-      "rationale": "string (why this constraint exists)"
-    }
-  ]
-}
-```
+Structure: Business Goals, Market Context, Requirements, Metrics, Constraints
 
----
+### 2. PRD (Product Requirements Document) - Markdown
 
-## 3. Task Schema
+**File**: `plans/generated-prd.md`  
+**Format**: Markdown (NOT JSON)
 
-**File format**: JSON (`.json`)
-**Location**: `plans/tasks.json`
+**Why Markdown?**
+- Human-readable and editable
+- LLMs parse markdown excellently  
+- Better for reviews and version control
+- No JSON↔MD conversion needed
+
+**Structure**:
+- Overview, JTBD, Acceptance Criteria
+- User Flows, Page Flows
+- Technical Constraints, Success Metrics
+
+### 3. Tasks JSON
+
+**File**: `plans/tasks.json`  
+**Format**: JSON Array
+
+**Important**: This is the **initial definition only**. Living status is in Vibe Kanban.
 
 ```json
 [
   {
     "id": "TASK-001",
-    "category": "functional|architecture|documentation|testing|infrastructure",
-    "description": "string (one-line summary)",
-    "details": "string (optional: technical context, notes)",
-    "steps": [
-      "Step 1: Create component X",
-      "Step 2: Implement logic Y",
-      "Step 3: Add tests for Z"
-    ],
-    "acceptance": [
-      "Acceptance 1: Tests pass",
-      "Acceptance 2: Code compiles without errors"
-    ],
-    "dependencies": ["TASK-002", "TASK-003"],
-    "priority": 1,
-    "status": "todo|in_progress|done|blocked",
-    "kanban_id": "uuid (from vibe-kanban MCP)",
-    "created_at": "ISO 8601 timestamp",
-    "completed_at": "ISO 8601 timestamp (optional)"
+    "category": "architecture|functional|testing|documentation",
+    "description": "One-line summary",
+    "details": "Detailed explanation",
+    "steps": ["Step 1", "Step 2"],
+    "acceptance": ["Criterion 1", "Criterion 2"],
+    "dependencies": ["TASK-002"],
+    "priority": "high|medium|low",
+    "status": "todo",
+    "kanban_id": "uuid-from-vibe-kanban",
+    "created_at": "ISO timestamp",
+    "completed_at": null
   }
 ]
 ```
 
-**Dependency Rules**:
-- Tasks with no dependencies can run in parallel
-- Tasks with dependencies run only when all dependencies are "done"
-- When cleanup runs, dependencies on cleaned tasks are removed from remaining tasks
+## CLI Commands
 
----
+### ralph brd-prd
 
-## 4. CLI Command Structure
+**Phase**: BRD → PRD  
+**Skill**: `@brd-to-prd`
 
 ```bash
-# Step 1: BRD → PRD
-ralph brd <brd-file.md>
-  → Invokes brd-to-prd skill
-  → Saves output to plans/generated-prd.json
-  → Prompts user to review/edit
-
-# Step 2: PRD → Tasks
-ralph prd <prd-file.json>
-  → Invokes prd-to-tasks skill
-  → Saves output to plans/tasks.json
-  → Flags dependencies needing human review
-  → Prompts user to confirm
-
-# Step 3: Create Kanban Tasks
-ralph tasks <tasks-file.json>
-  → Pre-flight: npx vibe-kanban (ensure installed)
-  → Check MCP connection
-  → If no project_id in config: list projects, prompt user to select
-  → For each task: vibe_kanban-create_task
-  → Store kanban_id in tasks.json
-
-# Step 4: Execute Tasks
-ralph run [--parallel] [--limit N]
-  → Identify tasks with no dependencies or satisfied dependencies
-  → If --parallel: start multiple vibe-kanban workspace sessions
-  → Poll vibe-kanban task status until done
-  → Mark tasks as "in_progress" / "done" in tasks.json
-
-# Step 5: Review Tasks
-ralph review <tasks-file.json>
-  → List completed tasks with summaries
-  → Prompt user to accept/request changes
-  → Update task status in tasks.json
-  → APPEND to docs/implementation-log.md
-
-# Step 6: Cleanup
-ralph cleanup
-  → Invoke cleanup skill (auto-generate summary)
-  → APPEND to docs/cleanup-log.md
-  → Remove dependencies from remaining tasks
-  → Run scripts/cleanup-worktrees.sh -f
-  → Close done tasks in vibe-kanban
-  → Archive tasks.json → done/tasks-{timestamp}.json
+ralph brd-prd plans/my-brd.md
+# Output: plans/generated-prd.md (markdown)
 ```
+
+### ralph prd-tasks
+
+**Phase**: PRD → Tasks  
+**Skill**: `@prd-to-tasks`
+
+```bash
+ralph prd-tasks plans/generated-prd.md
+# Output: plans/tasks.json
+```
+
+### ralph tasks-kanban
+
+**Phase**: Tasks → Vibe Kanban  
+**MCP**: `vibe_kanban-create_task`
+
+```bash
+ralph tasks-kanban plans/tasks.json
+# Creates tasks in Vibe Kanban, saves kanban_ids
+```
+
+### ralph run
+
+**Phase**: Start Ready Tasks  
+**MCP**: `vibe_kanban-list_tasks`, `vibe_kanban-start_workspace_session`
+
+```bash
+ralph run
+# Starts tasks with no dependencies
+```
+
+**Key Features**:
+- Reads from Vibe Kanban (NOT tasks.json)
+- Living status in Vibe Kanban
+- Progressive execution (call multiple times)
+
+## Living Status Concept
+
+**Critical**: Task status lives in Vibe Kanban, not tasks.json.
+
+```
+tasks.json          → Initial definition (created once)
+Vibe Kanban         → Living system (real-time status)
+ralph tasks-kanban  → Creates tasks, saves kanban_ids
+ralph run           → Reads Vibe Kanban, starts ready tasks
+```
+
+## Skills Architecture
+
+### Skill Loading Pattern
+
+- Skills in project scope: `.copilot/skills/`, `.claude/skills/`
+- Ralph references by name: `@brd-to-prd`
+- Coding agent loads skills natively
+- Source of truth: `skills/` folder
+
+### Available Skills
+
+1. **@brd-to-prd**: BRD markdown → PRD markdown (~100 lines)
+2. **@prd-tasks**: PRD markdown → tasks JSON (~100 lines)
+3. **@task-review**: Review completed tasks (future)
+4. **@cleanup-agent**: Cleanup & archive (future)
+
+## Vibe-Kanban Integration
+
+### Pattern: Prompt-Based MCP
+
+```
+Ralph → Prompts → Coding Agent → MCP Calls → Vibe-Kanban
+```
+
+### MCP Tools Used
+
+- `vibe_kanban-list_projects` - Get projects
+- `vibe_kanban-create_task` - Create tasks
+- `vibe_kanban-list_tasks` - Get task status
+- `vibe_kanban-start_workspace_session` - Start work
+
+## Configuration
+
+```json
+{
+  "vibe_kanban": {
+    "executor": "CLAUDE_CODE",
+    "model": "claude-sonnet-4.5",
+    "project_id": "uuid"
+  },
+  "paths": {
+    "prd": "plans/generated-prd.md",
+    "tasks": "plans/tasks.json"
+  }
+}
+```
+
+## Design Principles
+
+1. **Markdown for PRDs** - Human-readable, LLM-parseable
+2. **Prompt-Based MCP** - Clean separation of concerns
+3. **Skills in Project Scope** - Native loading by agent
+4. **Living Status in Vibe Kanban** - Single source of truth
+5. **Phase-Contextual Commands** - Clear workflow progression
 
 ---
 
-## 5. Vibe-Kanban MCP Integration Points
-
-### Required MCP Endpoints:
-1. **vibe_kanban-list_projects** → Get project list (for user selection)
-2. **vibe_kanban-create_task** → Create task in kanban board
-3. **vibe_kanban-get_task** → Get task status/details
-4. **vibe_kanban-list_tasks** → List all tasks in project
-5. **vibe_kanban-update_task** → Update task status
-6. **vibe_kanban-start_workspace_session** → Start coding agent on task
-7. **vibe_kanban-list_repos** → Get repo config for project
-
-### Workflow:
-```
-ralph tasks → create_task (get kanban_id)
-ralph run → start_workspace_session → poll get_task (check status)
-ralph cleanup → update_task (close) + delete_task
-```
-
----
-
-## 6. Philosophy: Full SDLC Wrapper (No Backward Compatibility)
-
-**Design Decision**: This is a complete reimagining of Ralph, not an extension of the old loop-based approach.
-
-**Key Differences from Old ralph.py**:
-- **Old**: Simple loop executing PRD items sequentially with Copilot CLI
-- **New**: Full SDLC workflow (BRD → PRD → Tasks → Execute → Review → Cleanup)
-- **Old**: Programmatic Copilot CLI calls
-- **New**: Vibe-Kanban coding agent orchestration via prompts
-- **Old**: Single progress.txt log
-- **New**: Structured logs (implementation-log.md, cleanup-log.md)
-
-**What We Keep**:
-- `scripts/cleanup-worktrees.sh` (enhanced for vibe-kanban)
-- `plans/` folder structure
-- Append-only logging philosophy
-
----
-
-## Next Steps
-
-- [x] Define schemas (this document)
-- [ ] Create config/ralph.json with defaults
-- [ ] Create lib/vibe_kanban_client.py wrapper
-- [ ] Implement CLI commands (ralph brd, ralph prd, ralph tasks, etc.)
-- [ ] Build skills (brd-to-prd, prd-to-tasks, task-review, cleanup-agent)
+**Version**: 2.0 (Markdown PRD, phase-contextual commands, ralph run)
