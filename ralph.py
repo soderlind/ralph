@@ -262,12 +262,45 @@ Output ONLY the tasks JSON array (no markdown fences, no extra text)."""
     # Remove leading bullets, asterisks, spaces
     response_cleaned = re.sub(r'^[●\*\-\s]+', '', response_cleaned, flags=re.MULTILINE)
     
-    # Remove markdown code fences
+    # Extract JSON from markdown code fences
     if "```json" in response_cleaned:
-        response_cleaned = response_cleaned.split("```json", 1)[1]
-    if "```" in response_cleaned and response_cleaned.count("```") >= 2:
-        # Find last occurrence
-        response_cleaned = response_cleaned.rsplit("```", 1)[0]
+        parts = response_cleaned.split("```json", 1)
+        if len(parts) > 1:
+            json_part = parts[1].split("```", 1)[0]
+            response_cleaned = json_part.strip()
+    elif "```" in response_cleaned:
+        # Try to find JSON between backticks
+        parts = response_cleaned.split("```")
+        if len(parts) >= 3:
+            response_cleaned = parts[1].strip()
+    
+    # Try to extract just the JSON array/object
+    # Find first [ or { and last ] or }
+    start_idx = min(
+        (response_cleaned.find('[') if '[' in response_cleaned else len(response_cleaned)),
+        (response_cleaned.find('{') if '{' in response_cleaned else len(response_cleaned))
+    )
+    
+    if start_idx < len(response_cleaned):
+        # Determine if it's array or object
+        is_array = response_cleaned[start_idx] == '['
+        end_char = ']' if is_array else '}'
+        
+        # Find matching closing bracket/brace
+        bracket_count = 0
+        end_idx = -1
+        for i in range(start_idx, len(response_cleaned)):
+            if response_cleaned[i] in '[{':
+                bracket_count += 1
+            elif response_cleaned[i] in ']}':
+                bracket_count -= 1
+                if bracket_count == 0:
+                    end_idx = i + 1
+                    break
+        
+        if end_idx > start_idx:
+            response_cleaned = response_cleaned[start_idx:end_idx]
+    
     response_cleaned = response_cleaned.strip()
     
     try:
