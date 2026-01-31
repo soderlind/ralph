@@ -200,6 +200,8 @@ Ralph uses agentic skills that need to be synced to your project:
 ```bash
 # Run the sync script (from ralph-copilot directory)
 ./scripts/sync-skills.sh
+# Or use npm:
+npm run sync-skills
 
 # This copies skills/ to:
 #   - .copilot/skills/  (for Copilot CLI)
@@ -216,6 +218,29 @@ Ralph uses agentic skills that need to be synced to your project:
 ```
 
 **Note:** Re-run this script whenever you update skill files.
+
+### Step 5.5: Optional - Set Up Vibe-Kanban UI (Dashboard)
+
+If you want to run Vibe-Kanban UI locally to view your projects and tasks in a dashboard:
+
+```bash
+# Start Vibe-Kanban UI (opens at http://localhost:3000)
+npm run vibe-kanban
+
+# In another terminal, you can now view your Vibe-Kanban dashboard
+# Create tasks, view progress, manage workspaces
+
+# When done, stop the UI:
+npm run stop-vibe-kanban
+# Or manually: Ctrl+C in the terminal where it's running
+```
+
+**Requirements for Vibe-Kanban UI:**
+- Node.js 16+ (comes with `npx`)
+- Internet connection (to connect to Vibe-Kanban servers)
+- Active Vibe-Kanban account
+
+**Note:** The Vibe-Kanban UI is optional. You don't need it to use Ralph - you can manage tasks entirely through Copilot CLI and the web UI at https://vibekanban.com/
 
 ### Step 6: Verify Setup (Test End-to-End)
 
@@ -245,6 +270,93 @@ copilot
 ```
 
 If all steps succeed, Ralph is ready to use! 🎉
+
+---
+
+## 🛠️ Common Commands
+
+Ralph provides both shell scripts and npm commands for common operations:
+
+### Ralph Workflow Commands
+
+```bash
+# Display help
+./ralph.py --help
+npm run ralph:help
+
+# Transform BRD to PRD
+./ralph.py brd plans/my-brd.md
+npm run ralph:brd -- plans/my-brd.md
+
+# Transform PRD to Tasks
+./ralph.py prd plans/my-prd.md
+npm run ralph:prd -- plans/my-prd.md
+
+# Create tasks in Vibe-Kanban
+./ralph.py tasks-kanban plans/tasks.json
+npm run ralph:tasks -- plans/tasks.json
+
+# Start workspace sessions
+./ralph.py run
+npm run ralph:run
+
+# Review completed tasks
+./ralph.py review
+npm run ralph:review
+
+# Archive and cleanup tasks
+./ralph.py cleanup
+npm run ralph:cleanup
+```
+
+### Advanced Commands (with --execute)
+
+```bash
+# Execute directly (requires permissions granted)
+./ralph.py --execute tasks-kanban plans/tasks.json
+
+# Non-interactive mode (for CI/CD)
+./ralph.py --execute --yolo run
+```
+
+### Maintenance Commands
+
+```bash
+# Sync skills to project scope
+./scripts/sync-skills.sh
+npm run sync-skills
+
+# Clean up git worktrees
+./scripts/cleanup-worktrees.sh
+npm run cleanup-worktrees
+
+# Force cleanup (skip confirmation)
+./scripts/cleanup-worktrees.sh -f
+npm run cleanup-worktrees:force
+
+# Start Vibe-Kanban UI dashboard
+npm run vibe-kanban
+
+# Stop Vibe-Kanban UI (if running)
+npm run stop-vibe-kanban
+```
+
+### Using npm Scripts
+
+All commands can be run with `npm run`:
+
+```bash
+npm run ralph:help        # Show ralph help
+npm run ralph:brd -- <file>      # Create PRD from BRD
+npm run ralph:prd -- <file>      # Create tasks from PRD
+npm run ralph:tasks -- <file>    # Create Kanban tasks
+npm run ralph:run         # Start workspaces
+npm run ralph:review      # Review completed tasks
+npm run ralph:cleanup     # Archive tasks
+npm run sync-skills       # Sync skills to project scope
+npm run vibe-kanban       # Start Vibe-Kanban UI
+npm run stop-vibe-kanban  # Stop Vibe-Kanban UI
+```
 
 ---
 

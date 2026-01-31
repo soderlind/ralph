@@ -1,0 +1,38 @@
+{
+  "name": "ralph-copilot",
+  "version": "0.1.0",
+  "description": "Ralph: SDLC Wrapper for Product Development - Transform BRD → PRD → Tasks → Execution",
+  "main": "ralph.py",
+  "scripts": {
+    "run-vibe-kanban": "npx -y vibe-kanban@latest",
+    "stop-vibe-kanban": "bash ./scripts/stop-vibe-kanban.sh",
+    "cleanup-worktrees": "bash ./scripts/cleanup-worktrees.sh",
+    "cleanup-worktrees:force": "bash ./scripts/cleanup-worktrees.sh -f",
+    "sync-skills": "bash ./scripts/sync-skills.sh",
+    "ralph": "python3 ralph.py --help",
+    "ralph:help": "python3 ralph.py --help",
+    "ralph:brd": "python3 ralph.py brd-prd",
+    "ralph:prd": "python3 ralph.py prd-tasks",
+    "ralph:tasks": "python3 ralph.py tasks-kanban",
+    "ralph:run": "python3 ralph.py run",
+    "ralph:review": "python3 ralph.py review",
+    "ralph:cleanup": "python3 ralph.py cleanup"
+  },
+  "keywords": [
+    "product-development",
+    "sdlc",
+    "task-management",
+    "ai-powered",
+    "workflow-automation"
+  ],
+  "author": "ans4175",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "optionalDependencies": {
+    "vibe-kanban": "latest"
+  }
+}
