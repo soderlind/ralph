@@ -387,228 +387,94 @@ def cmd_tasks_kanban(args: argparse.Namespace) -> int:
         log(f"❌ Expected tasks JSON array")
         return 1
     
-    # Check if vibe-kanban is installed
-    log("🔍 Checking vibe-kanban installation...")
-    try:
-        subprocess.run(
-            ["npx", "vibe-kanban", "--version"],
-            capture_output=True,
-            check=True,
-            timeout=10
-        )
-        log("✅ vibe-kanban is installed")
-    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
-        log("❌ vibe-kanban not found. Installing...")
-        try:
-            subprocess.run(
-                ["npx", "-y", "vibe-kanban@latest", "--version"],
-                capture_output=True,
-                check=True,
-                timeout=30
-            )
-            log("✅ vibe-kanban installed")
-        except Exception as e:
-            log(f"❌ Failed to install vibe-kanban: {e}")
-            return 1
-    
-    # Get or select project_id
-    project_id = config.get("vibe_kanban", {}).get("project_id")
-    
-    if not project_id:
-        log("📋 No project_id configured. Fetching projects...")
-        
-        # Generate prompt to list projects
-        from lib.vibe_kanban_client import VibeKanbanClient
-        vk_client = VibeKanbanClient()
-        list_prompt = vk_client.generate_list_projects_prompt()
-        
-        # Invoke coding agent to get projects
-        log("🤖 Fetching Vibe Kanban projects via MCP...")
-        model = config.get("vibe_kanban", {}).get("model", "claude-sonnet-4.5")
-        
-        # Build prompt for agent
-        agent_prompt = f"""{list_prompt}
-
-Return ONLY a JSON array of projects with id, name, and description.
-Format: [{{"id": "uuid", "name": "project name", "description": "desc"}}, ...]"""
-        
-        try:
-            result = subprocess.run(
-                ["copilot", "--model", model, "--no-color", "--stream", "off", "-p", agent_prompt],
-                capture_output=True,
-                text=True,
-                timeout=60,
-                check=True
-            )
-            response = result.stdout.strip()
-            
-            # Clean and parse JSON
-            import re
-            response_cleaned = re.sub(r'\x1b\[[0-9;]*m', '', response)
-            response_cleaned = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', response_cleaned)
-            
-            if "```json" in response_cleaned:
-                response_cleaned = response_cleaned.split("```json", 1)[1].split("```")[0]
-            
-            projects = json.loads(response_cleaned.strip())
-            
-            if not projects:
-                log("❌ No projects found in Vibe Kanban")
-                return 1
-            
-            # Display projects for selection
-            log("\n📋 Available projects:")
-            for i, proj in enumerate(projects, 1):
-                log(f"  {i}. {proj.get('name', 'Unnamed')} ({proj.get('id', 'N/A')})")
-            
-            # Prompt user to select
-            log("\n👉 Please select a project by number:")
-            try:
-                selection = int(input("Enter number: ")) - 1
-                if 0 <= selection < len(projects):
-                    project_id = projects[selection]["id"]
-                    log(f"✅ Selected: {projects[selection]['name']}")
-                    
-                    # Optionally save to config
-                    log(f"\n💡 Tip: Save this to config/ralph.json under vibe_kanban.project_id")
-                else:
-                    log("❌ Invalid selection")
-                    return 1
-            except (ValueError, KeyError) as e:
-                log(f"❌ Invalid input: {e}")
-                return 1
-                
-        except Exception as e:
-            log(f"❌ Failed to fetch projects: {e}")
-            return 1
-    
-    log(f"\n📦 Creating {len(tasks_data)} tasks in Vibe Kanban (project: {project_id})...")
-    
-    # Generate prompt to create all tasks
-    from lib.vibe_kanban_client import VibeKanbanClient
-    vk_client = VibeKanbanClient()
-    
-    # Build comprehensive prompt for creating all tasks
-    create_prompt = f"""Create {len(tasks_data)} tasks in Vibe Kanban project {project_id}.
-
-For each task below, use the vibe_kanban-create_task MCP tool with:
-- project_id: {project_id}
-- title: [task description]
-- description: [task details, steps, and acceptance criteria formatted as markdown]
-
-Tasks to create:
-
-"""
-    
-    for task in tasks_data:
-        task_desc = f"""
-**Task ID**: {task.get('id')}
-**Title**: {task.get('description')}
-**Category**: {task.get('category')}
-
-**Details**:
-{task.get('details', 'N/A')}
-
-**Steps**:
-{chr(10).join(f"- {step}" for step in task.get('steps', []))}
-
-**Acceptance Criteria**:
-{chr(10).join(f"- {ac}" for ac in task.get('acceptance', []))}
-
-**Dependencies**: {', '.join(task.get('dependencies', [])) or 'None'}
-**Priority**: {task.get('priority', 'medium')}
-
----
-"""
-        create_prompt += task_desc
-    
-    create_prompt += """
-After creating each task, save its Vibe Kanban task ID back to the tasks.json file by updating the 'kanban_id' field.
-
-Return a JSON summary:
-{
-  "created": [count],
-  "tasks": [
-    {"id": "TASK-001", "kanban_id": "uuid", "status": "created"},
-    ...
-  ]
-}
-"""
-    
-    # Save prompt to temp file for debugging
-    prompt_file = Path("plans/vibe-kanban-create-prompt.txt")
-    prompt_file.write_text(create_prompt, encoding="utf-8")
-    log(f"💾 Saved creation prompt to: {prompt_file}")
-    
-    # Invoke coding agent to create tasks
-    log("🤖 Invoking coding agent to create tasks via MCP...")
-    log("⏳ This may take a few minutes...")
-    
+    # Test if vibe-kanban MCP is running
+    log("🔍 Checking if vibe-kanban MCP is running...")
     model = config.get("vibe_kanban", {}).get("model", "claude-sonnet-4.5")
     
     try:
-        result = subprocess.run(
-            ["copilot", "--model", model, "--no-color", "--stream", "off", "-p", create_prompt],
+        test_result = subprocess.run(
+            ["copilot", "--model", model, "--no-color", "--stream", "off", "-p", 
+             "Use the vibe_kanban-list_projects MCP tool to list all projects. Return only 'OK' if the tool is available, or 'ERROR' if not."],
             capture_output=True,
             text=True,
-            timeout=300,  # 5 minutes for creating multiple tasks
+            timeout=30,
             check=True
         )
-        response = result.stdout.strip()
         
-        log("✅ Tasks created in Vibe Kanban!")
-        log(f"\n📋 Response:\n{response[:500]}...")
+        if "OK" in test_result.stdout or "vibe_kanban" in test_result.stdout.lower():
+            log("✅ vibe-kanban MCP is running")
+        else:
+            log("❌ vibe-kanban MCP may not be running")
+            log("💡 Please ensure vibe-kanban MCP is configured in your MCP settings")
+            log("   See config/mcp-config.json for configuration example")
+            return 1
+    except Exception as e:
+        log(f"❌ Failed to connect to vibe-kanban MCP: {e}")
+        log("💡 Please ensure vibe-kanban MCP is running")
+        return 1
+    
+    # Get project name from config
+    project_name = config.get("vibe_kanban", {}).get("project_name")
+    
+    if project_name:
+        log(f"📋 Using configured project: {project_name}")
+    else:
+        log("📋 No project name configured. Will prompt for selection...")
+    
+    # Build comprehensive prompt that handles project selection
+    log("🤖 Preparing task creation via MCP...")
+    model = config.get("vibe_kanban", {}).get("model", "claude-sonnet-4.5")
+    
+    # Build task creation prompt with project selection logic
+    task_list = "\n".join([f"- {t['id']}: {t['description']}" for t in tasks_data[:5]])
+    if len(tasks_data) > 5:
+        task_list += f"\n... and {len(tasks_data) - 5} more tasks"
+    
+    agent_prompt = f"""You are helping create tasks in Vibe Kanban.
+
+STEP 1: Get the project
+Use vibe_kanban-list_projects to list all available projects.
+
+{"STEP 2: Find project '" + project_name + "'" if project_name else "STEP 2: Ask user to select a project"}
+{f"Look for a project with name matching '{project_name}' (case insensitive)." if project_name else "Show the user the list of projects and ask them to type the project name."}
+{f"If found, use that project's ID. If not found, show available projects and ask user to select." if project_name else ""}
+
+STEP 3: Create all {len(tasks_data)} tasks
+Use vibe_kanban-create_task for each task with:
+- project_id: (from step 2)
+- title: Task ID + description (e.g., "TASK-001: Create TEST.md file")
+- description: Full task details including steps, acceptance criteria, and dependencies
+
+Tasks to create:
+{task_list}
+
+Full task data is in the JSON below:
+{json.dumps(tasks_data, indent=2)}
+
+After creating all tasks, respond with:
+"✅ Created {len(tasks_data)} tasks in project [project_name]"
+"""
+    
+    log(f"🚀 Creating {len(tasks_data)} tasks in Vibe Kanban...")
+    log("   (This may take a minute...)")
+    
+    try:
+        result = subprocess.run(
+            ["copilot", "--model", model, "-p", agent_prompt],
+            text=True,
+            timeout=300,
+            check=True
+        )
         
-        # Try to parse summary
-        try:
-            import re
-            response_cleaned = re.sub(r'\x1b\[[0-9;]*m', '', response)
-            response_cleaned = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', response_cleaned)
-            
-            if "```json" in response_cleaned:
-                response_cleaned = response_cleaned.split("```json", 1)[1].split("```")[0]
-            
-            summary = json.loads(response_cleaned.strip())
-            
-            log(f"\n✨ Created {summary.get('created', 0)} tasks")
-            
-            # Update tasks.json with kanban_ids
-            if "tasks" in summary:
-                for task_summary in summary["tasks"]:
-                    task_id = task_summary.get("id")
-                    kanban_id = task_summary.get("kanban_id")
-                    
-                    if task_id and kanban_id:
-                        for task in tasks_data:
-                            if task.get("id") == task_id:
-                                task["kanban_id"] = kanban_id
-                                task["status"] = "todo"
-                                break
-                
-                # Save updated tasks.json
-                tasks_path.write_text(
-                    json.dumps(tasks_data, indent=2, ensure_ascii=False) + "\n",
-                    encoding="utf-8"
-                )
-                log(f"💾 Updated {tasks_path} with kanban_ids")
-        except Exception as e:
-            log(f"⚠️  Could not parse summary: {e}")
-        
-        log("")
-        log("Next steps:")
-        log("  1. View tasks in Vibe Kanban dashboard")
-        log("  2. Start working on tasks: ralph run")
-        
+        log("✅ Tasks created successfully!")
+        log(f"💡 View tasks at: https://vibekanban.com/")
         return 0
         
     except subprocess.TimeoutExpired:
-        log("❌ Task creation timed out (5 minutes)")
-        return 1
-    except subprocess.CalledProcessError as e:
-        log(f"❌ Failed to create tasks: {e.stderr}")
+        log("❌ Task creation timed out (>5 minutes)")
         return 1
     except Exception as e:
-        log(f"❌ Unexpected error: {e}")
+        log(f"❌ Failed to create tasks: {e}")
         return 1
 
 

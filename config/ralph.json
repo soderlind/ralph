@@ -2,7 +2,7 @@
   "project_name": "ralph-sdlc-wrapper",
   "version": "0.1.0",
   "vibe_kanban": {
-    "project_id": null,
+    "project_name": null,
     "executor": "CLAUDE_CODE",
     "variant": null,
     "model": "claude-sonnet-4.5",
@@ -24,7 +24,7 @@
     "default_category": "functional"
   },
   "execution": {
-    "max_parallel_tasks": 3,
+    "max_parallel_tasks": 5,
     "poll_interval_seconds": 30,
     "max_retries": 3
   },

@@ -240,6 +240,37 @@ ralph cleanup
 - **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Technical architecture, data schemas, CLI structure
 - **[WORKFLOW.md](docs/WORKFLOW.md)** - Complete workflow guide with examples
 
+## Troubleshooting
+
+### MCP Permission Denied
+
+If you see "Permission denied" when running `ralph tasks-kanban`:
+
+**Problem**: Vibe-Kanban MCP requires permission approval, which can only happen in **interactive mode**.
+
+**Solution**: Grant permission once (saved permanently):
+
+1. Run Copilot in interactive mode:
+   ```bash
+   copilot
+   ```
+
+2. In the chat, type:
+   ```
+   Use vibe_kanban-list_projects to show all my projects
+   ```
+
+3. When prompted, approve the permission by typing `y`
+
+4. After approval, `ralph tasks-kanban` will work!
+
+**Alternative**: If you know your project name, add it to `config/ralph.json`:
+```json
+"vibe_kanban": {
+  "project_name": "YourProjectName"
+}
+```
+
 ## Design Principles
 
 1. **Markdown for Documents** - Human-readable, LLM-parseable, version-controllable
