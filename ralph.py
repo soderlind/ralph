@@ -898,19 +898,479 @@ def cmd_review(args: argparse.Namespace) -> int:
     Handle 'ralph review' command.
     
     Reviews completed tasks, appends to implementation-log.md.
+    By default, auto-runs cleanup unless --no-cleanup flag is set.
     """
-    log("🚧 'ralph review' not yet implemented")
-    return 1
+    config = load_config()
+    
+    # Get project_id from config
+    project_id = config.get("vibe_kanban", {}).get("project_id")
+    if not project_id:
+        log("❌ No project_id configured")
+        log("💡 Set vibe_kanban.project_id in config/ralph.json")
+        return 1
+    
+    log(f"📋 Reviewing completed tasks from Vibe Kanban project: {project_id}")
+    
+    # Step 1: List tasks with status='done' from Vibe Kanban
+    log("🔍 Fetching done tasks...")
+    
+    model = config.get("vibe_kanban", {}).get("model", "claude-sonnet-4.5")
+    
+    list_prompt = f"""Use the vibe_kanban-list_tasks MCP tool to get all tasks with status='done' from project {project_id}.
+
+Return ONLY a JSON array of tasks with these fields:
+[
+  {{
+    "task_id": "uuid",
+    "title": "task title",
+    "description": "task description (full details)"
+  }},
+  ...
+]
+
+Output ONLY the JSON array, no markdown fences, no extra text."""
+    
+    try:
+        result = subprocess.run(
+            ["copilot", "--model", model, "--no-color", "--stream", "off", "-p", list_prompt],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=True
+        )
+        response = result.stdout.strip()
+        
+        # Clean and parse JSON
+        import re
+        response_cleaned = re.sub(r'\x1b\[[0-9;]*m', '', response)
+        response_cleaned = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', response_cleaned)
+        
+        if "```json" in response_cleaned:
+            response_cleaned = response_cleaned.split("```json", 1)[1].split("```")[0]
+        elif "```" in response_cleaned:
+            response_cleaned = response_cleaned.split("```", 1)[1].split("```")[0]
+        
+        done_tasks = json.loads(response_cleaned.strip())
+        
+        if not done_tasks:
+            log("✅ No tasks to review (no done tasks)")
+            return 0
+        
+        log(f"✅ Found {len(done_tasks)} done tasks")
+        
+    except Exception as e:
+        log(f"❌ Failed to fetch done tasks: {e}")
+        return 1
+    
+    # Step 2: Filter tasks with valid Ralph task IDs
+    log("🔍 Filtering tasks with Ralph IDs...")
+    
+    valid_tasks = []
+    task_id_pattern = re.compile(r'\b([A-Z]+-\d+)\b')
+    
+    for task in done_tasks:
+        title = task.get("title", "")
+        description = task.get("description", "")
+        
+        match = task_id_pattern.search(title + " " + description)
+        if match:
+            task["ralph_task_id"] = match.group(1)
+            valid_tasks.append(task)
+    
+    if not valid_tasks:
+        log("⚠️  No valid Ralph tasks found in done status")
+        log("💡 Only tasks with IDs like TASK-001 are reviewed")
+        return 0
+    
+    log(f"✅ Reviewing {len(valid_tasks)} Ralph tasks")
+    
+    # Step 3: Generate reviews using @task-review skill
+    log("\n📝 Generating task reviews...")
+    
+    reviews = []
+    failed_reviews = []
+    
+    for task in valid_tasks:
+        ralph_id = task.get("ralph_task_id", "UNKNOWN")
+        title = task.get("title", "Untitled")
+        description = task.get("description", "")
+        
+        log(f"\n  Reviewing: [{ralph_id}] {title}")
+        
+        # Build prompt for @task-review skill
+        review_prompt = f"""Review this completed task and generate a summary.
+
+Task ID: {ralph_id}
+Title: {title}
+
+Description:
+{description}
+
+Generate a markdown summary with:
+- Status: Completed
+- Summary: Brief description of what was implemented
+- Technical Decisions: Key technical choices made
+- Challenges: Any challenges encountered
+- Follow-ups: Any follow-up work needed
+
+Output ONLY the markdown summary (no code fences, no extra text).
+Start with: ### {ralph_id}: {title}"""
+        
+        try:
+            # Use @task-review skill
+            review_response = invoke_copilot("task-review", review_prompt, model=model)
+            
+            # Clean response
+            review_cleaned = review_response.strip()
+            if review_cleaned.startswith("```markdown"):
+                review_cleaned = review_cleaned.split("```markdown", 1)[1]
+            elif review_cleaned.startswith("```"):
+                review_cleaned = review_cleaned.split("```", 1)[1]
+            if review_cleaned.endswith("```"):
+                review_cleaned = review_cleaned.rsplit("```", 1)[0]
+            review_cleaned = review_cleaned.strip()
+            
+            reviews.append(review_cleaned)
+            log(f"  ✅ Reviewed")
+            
+        except Exception as e:
+            log(f"  ⚠️  Review failed: {e}")
+            failed_reviews.append({"id": ralph_id, "title": title, "error": str(e)})
+    
+    if not reviews:
+        log("\n❌ All reviews failed")
+        return 1
+    
+    # Step 4: Append to docs/implementation-log.md
+    log(f"\n💾 Appending {len(reviews)} reviews to implementation log...")
+    
+    log_path = Path(config.get("paths", {}).get("implementation_log", "docs/implementation-log.md"))
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Build log entry
+    log_entry = f"\n## [{now_iso()}] Task Review\n\n"
+    log_entry += "\n\n".join(reviews)
+    log_entry += "\n"
+    
+    # Append to log
+    try:
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(log_entry)
+        log(f"✅ Appended to: {log_path}")
+    except Exception as e:
+        log(f"❌ Failed to append to log: {e}")
+        return 1
+    
+    # Step 5: Report summary
+    log("\n" + "="*60)
+    log("📊 Review Summary")
+    log("="*60)
+    log(f"✅ Reviewed: {len(reviews)} tasks")
+    
+    if failed_reviews:
+        log(f"⚠️  Failed: {len(failed_reviews)} tasks")
+        for item in failed_reviews:
+            log(f"   • [{item['id']}] {item['title']}")
+    
+    # Step 6: Auto-run cleanup unless --no-cleanup
+    no_cleanup = getattr(args, 'no_cleanup', False)
+    
+    if no_cleanup:
+        log("\n💡 Skipping cleanup (--no-cleanup flag)")
+        log("   Run 'ralph cleanup' when ready")
+    else:
+        log("\n🧹 Auto-running cleanup...")
+        log("="*60)
+        cleanup_result = cmd_cleanup(args)
+        if cleanup_result != 0:
+            log("⚠️  Cleanup encountered errors")
+            return 1
+    
+    return 0
 
 
 def cmd_cleanup(args: argparse.Namespace) -> int:
     """
     Handle 'ralph cleanup' command.
     
-    Cleans up completed tasks, adjusts dependencies, runs cleanup script.
+    Cleans up completed tasks: archives, adjusts dependencies, runs cleanup script,
+    deletes from Vibe Kanban.
     """
-    log("🚧 'ralph cleanup' not yet implemented")
-    return 1
+    config = load_config()
+    
+    # Get project_id from config
+    project_id = config.get("vibe_kanban", {}).get("project_id")
+    if not project_id:
+        log("❌ No project_id configured")
+        log("💡 Set vibe_kanban.project_id in config/ralph.json")
+        return 1
+    
+    log(f"🧹 Cleaning up completed tasks from Vibe Kanban project: {project_id}")
+    
+    # Step 1: List tasks with status='done' from Vibe Kanban
+    log("🔍 Fetching done tasks...")
+    
+    model = config.get("vibe_kanban", {}).get("model", "claude-sonnet-4.5")
+    
+    list_prompt = f"""Use the vibe_kanban-list_tasks MCP tool to get all tasks with status='done' from project {project_id}.
+
+Return ONLY a JSON array of tasks with these fields:
+[
+  {{
+    "task_id": "uuid",
+    "title": "task title",
+    "description": "task description"
+  }},
+  ...
+]
+
+Output ONLY the JSON array, no markdown fences, no extra text."""
+    
+    try:
+        result = subprocess.run(
+            ["copilot", "--model", model, "--no-color", "--stream", "off", "-p", list_prompt],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=True
+        )
+        response = result.stdout.strip()
+        
+        # Clean and parse JSON
+        import re
+        response_cleaned = re.sub(r'\x1b\[[0-9;]*m', '', response)
+        response_cleaned = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', response_cleaned)
+        
+        if "```json" in response_cleaned:
+            response_cleaned = response_cleaned.split("```json", 1)[1].split("```")[0]
+        elif "```" in response_cleaned:
+            response_cleaned = response_cleaned.split("```", 1)[1].split("```")[0]
+        
+        done_tasks = json.loads(response_cleaned.strip())
+        
+        if not done_tasks:
+            log("✅ No tasks to cleanup (no done tasks)")
+            return 0
+        
+        log(f"✅ Found {len(done_tasks)} done tasks")
+        
+    except Exception as e:
+        log(f"❌ Failed to fetch done tasks: {e}")
+        return 1
+    
+    # Step 2: Filter tasks with valid Ralph task IDs and archive
+    log("\n📦 Archiving tasks...")
+    
+    archived_tasks = []
+    task_id_pattern = re.compile(r'\b([A-Z]+-\d+)\b')
+    archive_dir = Path(config.get("paths", {}).get("archive_dir", "plans/done"))
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    
+    for task in done_tasks:
+        title = task.get("title", "")
+        description = task.get("description", "")
+        
+        match = task_id_pattern.search(title + " " + description)
+        if match:
+            ralph_id = match.group(1)
+            
+            # Archive task data
+            archive_data = {
+                "id": ralph_id,
+                "title": title,
+                "description": description,
+                "kanban_id": task.get("task_id"),
+                "completed_at": now_iso(),
+                "archived_at": now_iso()
+            }
+            
+            archive_path = archive_dir / f"{ralph_id}.json"
+            try:
+                archive_path.write_text(
+                    json.dumps(archive_data, indent=2, ensure_ascii=False) + "\n",
+                    encoding="utf-8"
+                )
+                archived_tasks.append({"id": ralph_id, "title": title, "kanban_id": task.get("task_id")})
+                log(f"  ✅ {ralph_id}: {title}")
+            except Exception as e:
+                log(f"  ❌ Failed to archive {ralph_id}: {e}")
+    
+    if not archived_tasks:
+        log("⚠️  No Ralph tasks found to archive")
+        return 0
+    
+    log(f"\n✅ Archived {len(archived_tasks)} tasks to {archive_dir}/")
+    
+    # Step 3: Update tasks.json dependencies
+    log("\n🔗 Updating task dependencies...")
+    
+    tasks_path = Path(config.get("paths", {}).get("tasks", "plans/tasks.json"))
+    
+    if not tasks_path.exists():
+        log(f"⚠️  tasks.json not found: {tasks_path}")
+        log("   Skipping dependency update")
+    else:
+        try:
+            tasks_data = json.loads(tasks_path.read_text(encoding="utf-8"))
+            
+            completed_ids = {t["id"] for t in archived_tasks}
+            updated_tasks = []
+            
+            for task in tasks_data:
+                task_id = task.get("id")
+                dependencies = task.get("dependencies", [])
+                
+                if dependencies:
+                    # Remove completed task IDs from dependencies
+                    new_dependencies = [dep for dep in dependencies if dep not in completed_ids]
+                    
+                    if len(new_dependencies) < len(dependencies):
+                        removed = [dep for dep in dependencies if dep in completed_ids]
+                        task["dependencies"] = new_dependencies
+                        updated_tasks.append({"id": task_id, "removed": removed})
+                        log(f"  ✅ {task_id}: Removed {removed}")
+            
+            # Save updated tasks.json
+            tasks_path.write_text(
+                json.dumps(tasks_data, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8"
+            )
+            
+            if updated_tasks:
+                log(f"\n✅ Updated {len(updated_tasks)} tasks in {tasks_path}")
+            else:
+                log("\n💡 No dependency updates needed")
+                
+        except Exception as e:
+            log(f"❌ Failed to update dependencies: {e}")
+            return 1
+    
+    # Step 4: Run cleanup-worktrees script
+    log("\n🔧 Running git worktree cleanup...")
+    
+    cleanup_script = Path("scripts/cleanup-worktrees.sh")
+    
+    if not cleanup_script.exists():
+        log(f"⚠️  Cleanup script not found: {cleanup_script}")
+        log("   Skipping worktree cleanup")
+        worktree_output = "Script not found"
+    else:
+        try:
+            result = subprocess.run(
+                ["bash", str(cleanup_script)],
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+            worktree_output = result.stdout.strip()
+            
+            if result.returncode == 0:
+                log(f"✅ Worktree cleanup completed")
+                if worktree_output:
+                    log(f"   {worktree_output}")
+            else:
+                log(f"⚠️  Worktree cleanup exited with code {result.returncode}")
+                log(f"   {result.stderr}")
+                
+        except Exception as e:
+            log(f"⚠️  Failed to run cleanup script: {e}")
+            worktree_output = f"Error: {e}"
+    
+    # Step 5: Delete tasks from Vibe Kanban
+    log("\n🗑️  Deleting tasks from Vibe Kanban...")
+    
+    deleted_tasks = []
+    failed_deletes = []
+    
+    for task in archived_tasks:
+        kanban_id = task["kanban_id"]
+        ralph_id = task["id"]
+        
+        delete_prompt = f"""Use the vibe_kanban-delete_task MCP tool to delete task {kanban_id} from Vibe Kanban.
+
+After deletion, return a JSON response:
+{{
+  "success": true,
+  "task_id": "{kanban_id}"
+}}
+
+Or if failed:
+{{
+  "success": false,
+  "task_id": "{kanban_id}",
+  "error": "error message"
+}}"""
+        
+        try:
+            subprocess.run(
+                ["copilot", "--model", model, "--no-color", "--stream", "off", "-p", delete_prompt],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=True
+            )
+            deleted_tasks.append(ralph_id)
+            log(f"  ✅ Deleted [{ralph_id}]")
+            
+        except Exception as e:
+            failed_deletes.append({"id": ralph_id, "error": str(e)})
+            log(f"  ⚠️  Failed to delete [{ralph_id}]: {e}")
+    
+    # Step 6: Append to docs/cleanup-log.md
+    log("\n💾 Appending cleanup summary to log...")
+    
+    cleanup_log_path = Path(config.get("paths", {}).get("cleanup_log", "docs/cleanup-log.md"))
+    cleanup_log_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Build log entry
+    log_entry = f"\n## [{now_iso()}] Cleanup\n\n"
+    
+    log_entry += "### Tasks Archived\n"
+    for task in archived_tasks:
+        log_entry += f"- {task['id']}: {task['title']} → {archive_dir}/{task['id']}.json\n"
+    log_entry += f"Total: {len(archived_tasks)} tasks archived\n\n"
+    
+    if updated_tasks:
+        log_entry += "### Dependencies Updated\n"
+        for item in updated_tasks:
+            log_entry += f"- {item['id']}: Removed dependencies on {item['removed']}\n"
+        log_entry += f"Total: {len(updated_tasks)} tasks updated\n\n"
+    
+    log_entry += "### Git Worktrees\n"
+    log_entry += f"{worktree_output}\n\n"
+    
+    log_entry += "### Vibe Kanban\n"
+    log_entry += f"- Deleted {len(deleted_tasks)} completed tasks from project\n"
+    if failed_deletes:
+        log_entry += f"- Failed to delete {len(failed_deletes)} tasks\n"
+    log_entry += "\n"
+    
+    # Append to log
+    try:
+        with open(cleanup_log_path, "a", encoding="utf-8") as f:
+            f.write(log_entry)
+        log(f"✅ Appended to: {cleanup_log_path}")
+    except Exception as e:
+        log(f"❌ Failed to append to cleanup log: {e}")
+        return 1
+    
+    # Step 7: Report summary
+    log("\n" + "="*60)
+    log("📊 Cleanup Summary")
+    log("="*60)
+    log(f"📦 Archived: {len(archived_tasks)} tasks")
+    log(f"🔗 Updated: {len(updated_tasks) if updated_tasks else 0} tasks (dependencies)")
+    log(f"🔧 Worktrees: Cleaned")
+    log(f"🗑️  Deleted: {len(deleted_tasks)} tasks from Vibe Kanban")
+    
+    if failed_deletes:
+        log(f"\n⚠️  Failed to delete {len(failed_deletes)} tasks:")
+        for item in failed_deletes:
+            log(f"   • [{item['id']}] {item['error']}")
+    
+    log("\n✅ Cleanup complete!")
+    
+    return 0 if not failed_deletes else 1
 
 
 def main() -> int:
@@ -995,8 +1455,9 @@ Full workflow:
         help="Review completed tasks"
     )
     review_parser.add_argument(
-        "tasks_file",
-        help="Path to tasks JSON file (e.g., plans/tasks.json)"
+        "--no-cleanup",
+        action="store_true",
+        help="Skip automatic cleanup after review"
     )
     
     # ralph cleanup
