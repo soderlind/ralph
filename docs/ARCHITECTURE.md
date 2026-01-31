@@ -1,14 +1,23 @@
+```
+╔════════════════════════════════════════════════════════════════╗
+║          RALPH SDLC WRAPPER - ARCHITECTURE GUIDE               ║
+╚════════════════════════════════════════════════════════════════╝
+```
+
 # Ralph SDLC Wrapper Architecture
 
 Complete technical architecture for the Ralph SDLC wrapper integrating with Vibe-Kanban.
 
-## Overview
+## 🎯 Overview
 
 Ralph transforms product development from requirements to implementation using:
-- **Markdown PRDs** (human-readable, LLM-parseable)
-- **Skills** (loaded by coding agent from project scope)
-- **Vibe-Kanban integration** (via prompt-based MCP)
-- **Phase-contextual commands** (brd-prd, prd-tasks, tasks-kanban, run)
+
+| Component | Purpose |
+|-----------|---------|
+| **Markdown PRDs** | Human-readable, LLM-parseable specifications |
+| **Skills** | Loaded by coding agent from project scope |
+| **Vibe-Kanban integration** | Via prompt-based MCP protocol |
+| **Phase-contextual commands** | Clear workflow progression (brd-prd → prd-tasks → tasks-kanban → run) |
 
 ## Data Flow
 
@@ -20,37 +29,41 @@ BRD.md → brd-prd → PRD.md → prd-tasks → tasks.json → tasks-kanban → 
                                                                      Workspace Sessions
 ```
 
-## Data Schemas
+## 📋 Data Schemas
 
-### 1. BRD (Business Requirements Document) - Markdown
+### 1️⃣ BRD (Business Requirements Document) - Markdown
 
-**File**: `plans/*.md`  
-**Format**: Markdown
+| Attribute | Value |
+|-----------|-------|
+| **File** | `plans/*.md` |
+| **Format** | Markdown |
+| **Structure** | Business Goals, Market Context, Requirements, Metrics, Constraints |
 
-Structure: Business Goals, Market Context, Requirements, Metrics, Constraints
+### 2️⃣ PRD (Product Requirements Document) - Markdown
 
-### 2. PRD (Product Requirements Document) - Markdown
+| Attribute | Value |
+|-----------|-------|
+| **File** | `plans/generated-prd.md` |
+| **Format** | Markdown (NOT JSON) |
 
-**File**: `plans/generated-prd.md`  
-**Format**: Markdown (NOT JSON)
+#### ✨ Why Markdown?
+- ✓ Human-readable and editable
+- ✓ LLMs parse markdown excellently  
+- ✓ Better for reviews and version control
+- ✓ No JSON↔MD conversion needed
 
-**Why Markdown?**
-- Human-readable and editable
-- LLMs parse markdown excellently  
-- Better for reviews and version control
-- No JSON↔MD conversion needed
-
-**Structure**:
+#### 📑 Structure:
 - Overview, JTBD, Acceptance Criteria
 - User Flows, Page Flows
 - Technical Constraints, Success Metrics
 
-### 3. Tasks JSON
+### 3️⃣ Tasks JSON
 
-**File**: `plans/tasks.json`  
-**Format**: JSON Array
-
-**Important**: This is the **initial definition only**. Living status is in Vibe Kanban.
+| Attribute | Value |
+|-----------|-------|
+| **File** | `plans/tasks.json` |
+| **Format** | JSON Array |
+| **Important** | This is the **initial definition only**. Living status is in Vibe Kanban. |
 
 ```json
 [
@@ -71,94 +84,116 @@ Structure: Business Goals, Market Context, Requirements, Metrics, Constraints
 ]
 ```
 
-## CLI Commands
+## ⚙️ CLI Commands
 
-### ralph brd-prd
+### 🔨 ralph brd-prd
 
-**Phase**: BRD → PRD  
-**Skill**: `@brd-to-prd`
+| Property | Value |
+|----------|-------|
+| **Phase** | BRD → PRD |
+| **Skill** | `@brd-to-prd` |
 
 ```bash
 ralph brd-prd plans/my-brd.md
 # Output: plans/generated-prd.md (markdown)
 ```
 
-### ralph prd-tasks
+---
 
-**Phase**: PRD → Tasks  
-**Skill**: `@prd-to-tasks`
+### 🔨 ralph prd-tasks
+
+| Property | Value |
+|----------|-------|
+| **Phase** | PRD → Tasks |
+| **Skill** | `@prd-to-tasks` |
 
 ```bash
 ralph prd-tasks plans/generated-prd.md
 # Output: plans/tasks.json
 ```
 
-### ralph tasks-kanban
+---
 
-**Phase**: Tasks → Vibe Kanban  
-**MCP**: `vibe_kanban-create_task`
+### 🔨 ralph tasks-kanban
+
+| Property | Value |
+|----------|-------|
+| **Phase** | Tasks → Vibe Kanban |
+| **MCP** | `vibe_kanban-create_task` |
 
 ```bash
 ralph tasks-kanban plans/tasks.json
 # Creates tasks in Vibe Kanban, saves kanban_ids
 ```
 
-### ralph run
+---
 
-**Phase**: Start Ready Tasks  
-**MCP**: `vibe_kanban-list_tasks`, `vibe_kanban-start_workspace_session`
+### 🔨 ralph run
+
+| Property | Value |
+|----------|-------|
+| **Phase** | Start Ready Tasks |
+| **MCP** | `vibe_kanban-list_tasks`, `vibe_kanban-start_workspace_session` |
 
 ```bash
 ralph run
 # Starts tasks with no dependencies
 ```
 
-**Key Features**:
-- Reads from Vibe Kanban (NOT tasks.json)
-- Living status in Vibe Kanban
-- Progressive execution (call multiple times)
+#### ⭐ Key Features:
+- ✓ Reads from Vibe Kanban (NOT tasks.json)
+- ✓ Living status in Vibe Kanban
+- ✓ Progressive execution (call multiple times)
 
-## Living Status Concept
+## 🔄 Living Status Concept
 
-**Critical**: Task status lives in Vibe Kanban, not tasks.json.
-
-```
-tasks.json          → Initial definition (created once)
-Vibe Kanban         → Living system (real-time status)
-ralph tasks-kanban  → Creates tasks, saves kanban_ids
-ralph run           → Reads Vibe Kanban, starts ready tasks
-```
-
-## Skills Architecture
-
-### Skill Loading Pattern
-
-- Skills in project scope: `.copilot/skills/`, `.claude/skills/`
-- Ralph references by name: `@brd-to-prd`
-- Coding agent loads skills natively
-- Source of truth: `skills/` folder
-
-### Available Skills
-
-1. **@brd-to-prd**: BRD markdown → PRD markdown (~100 lines)
-2. **@prd-tasks**: PRD markdown → tasks JSON (~100 lines)
-3. **@task-review**: Review completed tasks (future)
-4. **@cleanup-agent**: Cleanup & archive (future)
-
-## Vibe-Kanban Integration
-
-### Pattern: Prompt-Based MCP
+> **⚠️ Critical**: Task status lives in Vibe Kanban, not tasks.json.
 
 ```
-Ralph → Prompts → Coding Agent → MCP Calls → Vibe-Kanban
+┌───────────────────────────────────────────────────────────┐
+│ tasks.json          → Initial definition (created once)   │
+│ Vibe Kanban         → Living system (real-time status)    │
+│ ralph tasks-kanban  → Creates tasks, saves kanban_ids     │
+│ ralph run           → Reads Vibe Kanban, starts ready tasks│
+└───────────────────────────────────────────────────────────┘
 ```
 
-### MCP Tools Used
+## 🎓 Skills Architecture
 
-- `vibe_kanban-list_projects` - Get projects
-- `vibe_kanban-create_task` - Create tasks
-- `vibe_kanban-list_tasks` - Get task status
-- `vibe_kanban-start_workspace_session` - Start work
+### 🔧 Skill Loading Pattern
+
+| Aspect | Details |
+|--------|---------|
+| **Location** | `.copilot/skills/`, `.claude/skills/` |
+| **Reference** | By name: `@brd-to-prd` |
+| **Agent** | Coding agent loads skills natively |
+| **Truth** | Source of truth: `skills/` folder |
+
+### 📚 Available Skills
+
+| Skill | Description | Est. Size |
+|-------|-------------|-----------|
+| **@brd-to-prd** | BRD markdown → PRD markdown | ~100 lines |
+| **@prd-tasks** | PRD markdown → tasks JSON | ~100 lines |
+| **@task-review** | Review completed tasks | future |
+| **@cleanup-agent** | Cleanup & archive | future |
+
+## 🔗 Vibe-Kanban Integration
+
+### 🎯 Pattern: Prompt-Based MCP
+
+```
+Ralph ──▶ Prompts ──▶ Coding Agent ──▶ MCP Calls ──▶ Vibe-Kanban
+```
+
+### 🛠️ MCP Tools Used
+
+| Tool | Purpose |
+|------|---------|
+| `vibe_kanban-list_projects` | Get projects |
+| `vibe_kanban-create_task` | Create tasks |
+| `vibe_kanban-list_tasks` | Get task status |
+| `vibe_kanban-start_workspace_session` | Start work |
 
 ## Configuration
 
@@ -176,14 +211,19 @@ Ralph → Prompts → Coding Agent → MCP Calls → Vibe-Kanban
 }
 ```
 
-## Design Principles
+## 💡 Design Principles
 
-1. **Markdown for PRDs** - Human-readable, LLM-parseable
-2. **Prompt-Based MCP** - Clean separation of concerns
-3. **Skills in Project Scope** - Native loading by agent
-4. **Living Status in Vibe Kanban** - Single source of truth
-5. **Phase-Contextual Commands** - Clear workflow progression
+1. **📝 Markdown for PRDs** — Human-readable, LLM-parseable
+2. **🎯 Prompt-Based MCP** — Clean separation of concerns
+3. **📦 Skills in Project Scope** — Native loading by agent
+4. **🔒 Living Status in Vibe Kanban** — Single source of truth
+5. **🚀 Phase-Contextual Commands** — Clear workflow progression
 
 ---
 
-**Version**: 2.0 (Markdown PRD, phase-contextual commands, ralph run)
+```
+╔════════════════════════════════════════════════════════════════╗
+║                  Version 2.0                                   ║
+║      Markdown PRD • Phase-Contextual Commands • Ralph Run       ║
+╚════════════════════════════════════════════════════════════════╝
+```
