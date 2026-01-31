@@ -207,7 +207,7 @@ def cmd_prd(args: argparse.Namespace) -> int:
     """
     Handle 'ralph prd' command.
     
-    Reads PRD JSON file, invokes prd-to-tasks skill, saves tasks.json.
+    Reads PRD markdown file, invokes prd-to-tasks skill, saves tasks.json.
     """
     prd_path = Path(args.prd_file)
     
@@ -223,13 +223,6 @@ def cmd_prd(args: argparse.Namespace) -> int:
     log(f"📖 Reading PRD: {prd_path}")
     prd_content = prd_path.read_text(encoding="utf-8")
     
-    # Parse PRD JSON
-    try:
-        prd_data = json.loads(prd_content)
-    except json.JSONDecodeError as e:
-        log(f"❌ Invalid PRD JSON: {e}")
-        return 1
-    
     # Build task prompt (skill will be loaded by coding agent)
     task_prompt = f"""Break down this PRD into atomic, actionable tasks with dependencies.
 
@@ -237,7 +230,7 @@ PRD File: {prd_path}
 
 ---
 
-{json.dumps(prd_data, indent=2)}
+{prd_content}
 
 ---
 

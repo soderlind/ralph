@@ -1,0 +1,168 @@
+[
+  {
+    "id": "TASK-001",
+    "category": "architecture",
+    "description": "Create basic HTML structure with input form and todo list container",
+    "details": "Single HTML file with form (input + button) and empty list container. Includes  basic CSS for layout.",
+    "steps": [
+      "Create index.html with DOCTYPE and basic structure",
+      "Add input field for todo title",
+      "Add 'Add' button next to input",
+      "Add empty <ul> container for todo list",
+      "Add basic CSS in <style> tag for layout"
+    ],
+    "acceptance": [
+      "HTML file loads without errors",
+      "Input field is visible and functional",
+      "Add button is visible",
+      "List container exists in DOM"
+    ],
+    "dependencies": [],
+    "priority": 1,
+    "status": "todo"
+  },
+  {
+    "id": "TASK-002",
+    "category": "architecture",
+    "description": "Setup todo data structure and in-memory storage",
+    "details": "Define todo object schema (id, title, completed) and array to hold todos in  JavaScript",
+    "steps": [
+      "Add <script> tag in HTML",
+      "Create empty todos array to store todo objects",
+      "Define todo object structure: {id, title, completed}",
+      "Add ID generation function (e.g., Date.now())"
+    ],
+    "acceptance": [
+      "Todos array is declared and accessible",
+      "Todo object schema is documented in code comment",
+      "ID generator produces unique IDs"
+    ],
+    "dependencies": [],
+    "priority": 1,
+    "status": "todo"
+  },
+  {
+    "id": "TASK-003",
+    "category": "functional",
+    "description": "Implement add todo functionality",
+    "details": "Handle form submission, create todo object, add to array, render in list (AC:  Users can add new todo items with a title)",
+    "steps": [
+      "Add event listener to 'Add' button",
+      "Get title value from input field",
+      "Validate title is not empty",
+      "Create new todo object with id, title, completed: false",
+      "Push todo to todos array",
+      "Clear input field",
+      "Call renderTodos() to update UI"
+    ],
+    "acceptance": [
+      "Clicking Add button creates new todo",
+      "Empty title shows alert or is blocked",
+      "Todo appears in list immediately",
+      "Input field clears after adding"
+    ],
+    "dependencies": [
+      "TASK-001",
+      "TASK-002"
+    ],
+    "priority": 2,
+    "status": "todo"
+  },
+  {
+    "id": "TASK-004",
+    "category": "functional",
+    "description": "Implement renderTodos function to display todo list",
+    "details": "Dynamically generate <li> elements for each todo with click handler for  completion toggle",
+    "steps": [
+      "Create renderTodos() function",
+      "Clear existing list items in <ul>",
+      "Loop through todos array",
+      "For each todo, create <li> with title text",
+      "Add click event listener to each <li> for toggling complete",
+      "Append <li> to <ul> container"
+    ],
+    "acceptance": [
+      "All todos in array are displayed",
+      "List updates when renderTodos() is called",
+      "Each todo item is clickable",
+      "List shows in correct order (newest first or by ID)"
+    ],
+    "dependencies": [
+      "TASK-001",
+      "TASK-002"
+    ],
+    "priority": 2,
+    "status": "todo"
+  },
+  {
+    "id": "TASK-005",
+    "category": "functional",
+    "description": "Implement mark complete functionality with toggle",
+    "details": "Click todo to toggle completed status in data array (AC: Users can mark todos as   complete)",
+    "steps": [
+      "In <li> click handler, find todo by ID in todos array",
+      "Toggle the completed property (true/false)",
+      "Call renderTodos() to refresh UI"
+    ],
+    "acceptance": [
+      "Clicking a todo toggles its completed state",
+      "Todo can be marked complete and then incomplete",
+      "State persists in todos array",
+      "UI updates immediately after click"
+    ],
+    "dependencies": [
+      "TASK-003",
+      "TASK-004"
+    ],
+    "priority": 3,
+    "status": "todo"
+  },
+  {
+    "id": "TASK-006",
+    "category": "functional",
+    "description": "Add strikethrough styling for completed todos",
+    "details": "Apply CSS class or inline style to show completed todos with strikethrough (AC:  Completed todos show with strikethrough)",
+    "steps": [
+      "In renderTodos(), check if todo.completed is true",
+      "If completed, add CSS class 'completed' to <li>",
+      "Define .completed CSS rule with text-decoration: line-through",
+      "Optionally add color change (e.g., gray text)"
+    ],
+    "acceptance": [
+      "Completed todos display with strikethrough",
+      "Uncompleted todos have no strikethrough",
+      "Style updates immediately when toggling",
+      "Strikethrough is clearly visible"
+    ],
+    "dependencies": [
+      "TASK-005"
+    ],
+    "priority": 4,
+    "status": "todo"
+  },
+  {
+    "id": "TASK-007",
+    "category": "testing",
+    "description": "Manual testing of all user flows",
+    "details": "Test add todo flow, mark complete flow, and visual strikethrough",
+    "steps": [
+      "Test: Add multiple todos with different titles",
+      "Test: Add todo with empty title (should be blocked)",
+      "Test: Click todo to mark complete",
+      "Test: Click completed todo to mark incomplete",
+      "Test: Verify strikethrough appears/disappears",
+      "Test: Verify input clears after adding"
+    ],
+    "acceptance": [
+      "All acceptance criteria are met",
+      "No console errors occur",
+      "UI updates are immediate and correct",
+      "Edge cases handled (empty input, rapid clicks)"
+    ],
+    "dependencies": [
+      "TASK-006"
+    ],
+    "priority": 5,
+    "status": "todo"
+  }
+]
