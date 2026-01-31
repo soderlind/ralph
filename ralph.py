@@ -114,7 +114,7 @@ def invoke_copilot(
         sys.exit(1)
 
 
-def cmd_brd(args: argparse.Namespace) -> int:
+def cmd_brd_prd(args: argparse.Namespace) -> int:
     """
     Handle 'ralph brd' command.
     
@@ -203,7 +203,7 @@ Output ONLY the PRD JSON (no markdown fences, no extra text)."""
     return 0
 
 
-def cmd_prd(args: argparse.Namespace) -> int:
+def cmd_prd_tasks(args: argparse.Namespace) -> int:
     """
     Handle 'ralph prd' command.
     
@@ -362,7 +362,7 @@ Output ONLY the tasks JSON array (no markdown fences, no extra text)."""
     return 0
 
 
-def cmd_tasks(args: argparse.Namespace) -> int:
+def cmd_tasks_kanban(args: argparse.Namespace) -> int:
     """
     Handle 'ralph tasks' command.
     
