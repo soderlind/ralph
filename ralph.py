@@ -254,11 +254,19 @@ Output ONLY the tasks JSON array (no markdown fences, no extra text)."""
     # Strip markdown artifacts and leading characters
     response_cleaned = response.strip()
     import re
+    
+    # Remove ANSI color codes and control characters
+    response_cleaned = re.sub(r'\x1b\[[0-9;]*m', '', response_cleaned)
+    response_cleaned = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', response_cleaned)
+    
+    # Remove leading bullets, asterisks, spaces
     response_cleaned = re.sub(r'^[●\*\-\s]+', '', response_cleaned, flags=re.MULTILINE)
+    
     # Remove markdown code fences
     if "```json" in response_cleaned:
         response_cleaned = response_cleaned.split("```json", 1)[1]
-    if response_cleaned.endswith("```"):
+    if "```" in response_cleaned and response_cleaned.count("```") >= 2:
+        # Find last occurrence
         response_cleaned = response_cleaned.rsplit("```", 1)[0]
     response_cleaned = response_cleaned.strip()
     
