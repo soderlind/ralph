@@ -1093,8 +1093,8 @@ def cmd_cleanup(args: argparse.Namespace) -> int:
     """
     Handle 'ralph cleanup' command.
     
-    Cleans up completed tasks: archives, adjusts dependencies, runs cleanup script,
-    deletes from Vibe Kanban.
+    Cleans up completed tasks that have already been reviewed.
+    Only processes tasks that exist in implementation-log.md AND are in done status.
     """
     config = load_config()
     
@@ -1105,9 +1105,41 @@ def cmd_cleanup(args: argparse.Namespace) -> int:
         log("💡 Set vibe_kanban.project_id in config/ralph.json")
         return 1
     
-    log(f"🧹 Cleaning up completed tasks from Vibe Kanban project: {project_id}")
+    log(f"🧹 Cleaning up reviewed tasks from Vibe Kanban project: {project_id}")
     
-    # Step 1: List tasks with status='done' from Vibe Kanban
+    # Step 1: Read implementation-log.md to get reviewed task IDs
+    log("📖 Reading implementation log...")
+    
+    log_path = Path(config.get("paths", {}).get("implementation_log", "docs/implementation-log.md"))
+    
+    if not log_path.exists():
+        log(f"⚠️  Implementation log not found: {log_path}")
+        log("💡 Run 'ralph review' first to review tasks")
+        return 0
+    
+    # Parse log to extract reviewed task IDs
+    reviewed_task_ids = set()
+    try:
+        log_content = log_path.read_text(encoding="utf-8")
+        
+        # Extract task IDs from log (look for patterns like TASK-001, TASK-002)
+        import re
+        task_id_pattern = re.compile(r'\b([A-Z]+-\d+)\b')
+        matches = task_id_pattern.findall(log_content)
+        reviewed_task_ids = set(matches)
+        
+        if not reviewed_task_ids:
+            log("⚠️  No reviewed tasks found in implementation log")
+            log("💡 Run 'ralph review' first to review tasks")
+            return 0
+        
+        log(f"✅ Found {len(reviewed_task_ids)} reviewed task IDs in log")
+        
+    except Exception as e:
+        log(f"❌ Failed to read implementation log: {e}")
+        return 1
+    
+    # Step 2: List tasks with status='done' from Vibe Kanban
     log("🔍 Fetching done tasks...")
     
     model = config.get("vibe_kanban", {}).get("model", "claude-sonnet-4.5")
@@ -1158,10 +1190,11 @@ Output ONLY the JSON array, no markdown fences, no extra text."""
         log(f"❌ Failed to fetch done tasks: {e}")
         return 1
     
-    # Step 2: Filter tasks with valid Ralph task IDs and archive
-    log("\n📦 Archiving tasks...")
+    # Step 3: Filter tasks with valid Ralph task IDs, only if reviewed
+    log("\n📦 Filtering reviewed tasks...")
     
     archived_tasks = []
+    skipped_tasks = []
     task_id_pattern = re.compile(r'\b([A-Z]+-\d+)\b')
     archive_dir = Path(config.get("paths", {}).get("archive_dir", "plans/done"))
     archive_dir.mkdir(parents=True, exist_ok=True)
@@ -1173,6 +1206,12 @@ Output ONLY the JSON array, no markdown fences, no extra text."""
         match = task_id_pattern.search(title + " " + description)
         if match:
             ralph_id = match.group(1)
+            
+            # Check if this task has been reviewed
+            if ralph_id not in reviewed_task_ids:
+                skipped_tasks.append({"id": ralph_id, "title": title, "reason": "Not reviewed yet"})
+                log(f"  ⏭️  {ralph_id}: Not reviewed yet (skipping)")
+                continue
             
             # Archive task data
             archive_data = {
@@ -1196,7 +1235,11 @@ Output ONLY the JSON array, no markdown fences, no extra text."""
                 log(f"  ❌ Failed to archive {ralph_id}: {e}")
     
     if not archived_tasks:
-        log("⚠️  No Ralph tasks found to archive")
+        if skipped_tasks:
+            log(f"\n⚠️  No reviewed tasks ready for cleanup")
+            log(f"💡 {len(skipped_tasks)} tasks not reviewed yet - run 'ralph review' first")
+        else:
+            log("⚠️  No Ralph tasks found to archive")
         return 0
     
     log(f"\n✅ Archived {len(archived_tasks)} tasks to {archive_dir}/")
@@ -1359,6 +1402,10 @@ Or if failed:
     log("📊 Cleanup Summary")
     log("="*60)
     log(f"📦 Archived: {len(archived_tasks)} tasks")
+    
+    if skipped_tasks:
+        log(f"⏭️  Skipped: {len(skipped_tasks)} tasks (not reviewed yet)")
+    
     log(f"🔗 Updated: {len(updated_tasks) if updated_tasks else 0} tasks (dependencies)")
     log(f"🔧 Worktrees: Cleaned")
     log(f"🗑️  Deleted: {len(deleted_tasks)} tasks from Vibe Kanban")
