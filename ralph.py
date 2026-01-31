@@ -207,10 +207,125 @@ def cmd_prd(args: argparse.Namespace) -> int:
     """
     Handle 'ralph prd' command.
     
-    Reads PRD JSON, invokes prd-to-tasks skill, saves tasks JSON.
+    Reads PRD JSON file, invokes prd-to-tasks skill, saves tasks.json.
     """
-    log("🚧 'ralph prd' not yet implemented")
-    return 1
+    prd_path = Path(args.prd_file)
+    
+    if not prd_path.exists():
+        log(f"❌ PRD file not found: {prd_path}")
+        return 1
+    
+    # Verify skill exists in project scope
+    skill_name = "prd-to-tasks"
+    if not verify_skill_exists(skill_name):
+        return 1
+    
+    log(f"📖 Reading PRD: {prd_path}")
+    prd_content = prd_path.read_text(encoding="utf-8")
+    
+    # Parse PRD JSON
+    try:
+        prd_data = json.loads(prd_content)
+    except json.JSONDecodeError as e:
+        log(f"❌ Invalid PRD JSON: {e}")
+        return 1
+    
+    # Build task prompt (skill will be loaded by coding agent)
+    task_prompt = f"""Break down this PRD into atomic, actionable tasks with dependencies.
+
+PRD File: {prd_path}
+
+---
+
+{json.dumps(prd_data, indent=2)}
+
+---
+
+Output ONLY the tasks JSON array (no markdown fences, no extra text)."""
+    
+    # Invoke Copilot (it loads @prd-to-tasks from project scope)
+    config = load_config()
+    skill_config = config.get("skills", {}).get("prd_to_tasks", {})
+    model = skill_config.get("model", "claude-sonnet-4.5")
+    
+    response = invoke_copilot(skill_name, task_prompt, model=model)
+    
+    # Parse and validate JSON
+    # Strip markdown artifacts and leading characters
+    response_cleaned = response.strip()
+    import re
+    response_cleaned = re.sub(r'^[●\*\-\s]+', '', response_cleaned, flags=re.MULTILINE)
+    # Remove markdown code fences
+    if "```json" in response_cleaned:
+        response_cleaned = response_cleaned.split("```json", 1)[1]
+    if response_cleaned.endswith("```"):
+        response_cleaned = response_cleaned.rsplit("```", 1)[0]
+    response_cleaned = response_cleaned.strip()
+    
+    try:
+        tasks_data = json.loads(response_cleaned)
+    except json.JSONDecodeError as e:
+        log(f"⚠️  Response is not valid JSON, saving as-is")
+        log(f"Parse error: {e}")
+        # Save raw response for debugging
+        output_path = Path(args.output or "plans/tasks.txt")
+        output_path.write_text(response, encoding="utf-8")
+        log(f"💾 Saved raw response to: {output_path}")
+        log("⚠️  Please manually convert to JSON or re-run")
+        return 1
+    
+    # Validate it's an array
+    if not isinstance(tasks_data, list):
+        log(f"❌ Expected tasks JSON array, got: {type(tasks_data).__name__}")
+        return 1
+    
+    # Save tasks
+    output_path = Path(args.output or "plans/tasks.json")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        json.dumps(tasks_data, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8"
+    )
+    
+    log(f"✅ Tasks generated successfully!")
+    log(f"💾 Saved to: {output_path}")
+    log("")
+    
+    # Display summary
+    log("📋 Tasks Summary:")
+    log(f"  - Total tasks: {len(tasks_data)}")
+    
+    # Count by category
+    categories = {}
+    for task in tasks_data:
+        cat = task.get("category", "uncategorized")
+        categories[cat] = categories.get(cat, 0) + 1
+    
+    log(f"  - Categories:")
+    for cat, count in sorted(categories.items()):
+        log(f"    • {cat}: {count}")
+    
+    # Count tasks with dependencies
+    tasks_with_deps = sum(1 for t in tasks_data if t.get("dependencies"))
+    log(f"  - Tasks with dependencies: {tasks_with_deps}")
+    
+    # Flag uncertain dependencies for review
+    uncertain_tasks = [t for t in tasks_data if t.get("uncertain_dependencies")]
+    if uncertain_tasks:
+        log("")
+        log(f"⚠️  {len(uncertain_tasks)} task(s) have uncertain dependencies - please review:")
+        for task in uncertain_tasks[:5]:  # Show first 5
+            log(f"    • Task {task.get('id')}: {task.get('description', 'N/A')[:60]}")
+        if len(uncertain_tasks) > 5:
+            log(f"    ... and {len(uncertain_tasks) - 5} more")
+    
+    log("")
+    log("Next steps:")
+    log("  1. Review tasks in: " + str(output_path))
+    log("  2. Adjust dependencies if needed")
+    log("  3. Create tasks in Vibe Kanban: ralph tasks")
+    
+    return 0
 
 
 def cmd_review(args: argparse.Namespace) -> int:
