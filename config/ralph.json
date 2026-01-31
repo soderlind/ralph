@@ -49,7 +49,7 @@
     },
     "task_review": {
       "path": "skills/task-review",
-      "model": "claude-sonnet-4.5",
+      "model": "claude-haiku-4.5",
       "temperature": 0.3
     },
     "cleanup_agent": {
