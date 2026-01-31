@@ -157,9 +157,9 @@
   1. User provides quick task idea/description
   2. System analyzes prompt intent and context
   3. Routes to relevant **skills** for enhancement:
-     - `task-review` skill: refine task description, acceptance criteria
+     - `ralph-task-review` skill: refine task description, acceptance criteria
      - `brainstorming` skill: explore requirements, edge cases, dependencies
-     - `prd-to-tasks` skill: break down into atomic subtasks
+     - `ralph-prd-to-tasks` skill: break down into atomic subtasks
      - `doc-coauthoring` skill: structure task documentation
   4. Skills enhance the prompt with:
      - Detailed task title and description
@@ -216,6 +216,84 @@
 
 ---
 
+## 7. Run Tasks with Custom Model Parameters
+**Description**: Allow users to execute tasks with custom model parameters and configuration options for fine-tuned control over AI behavior.
+
+**Details**:
+- Add parameters support for task execution commands
+- Model configuration options:
+  - Temperature control for creativity vs consistency
+  - Max tokens for response length
+  - Custom model selection (GPT-4, Claude, etc.)
+  - System prompt overrides
+  - Response format preferences (JSON, Markdown, etc.)
+- Command syntax examples:
+  ```
+  $ ralph run-task <task-id> --model gpt-4 --temperature 0.7 --max-tokens 4000
+  $ ralph run-task <task-id> --model claude-3-opus --system-prompt "Be concise"
+  $ ralph dev --model-params temperature=0.3,max_tokens=2000
+  ```
+- Features:
+  - `--model <model-name>` flag: select AI model (gpt-4, claude-3-opus, etc.)
+  - `--temperature <0.0-1.0>` flag: control randomness/creativity
+  - `--max-tokens <number>` flag: limit response length
+  - `--system-prompt <text>` flag: add custom system instructions
+  - `--format <json|markdown|yaml>` flag: specify output format
+  - `--model-params <key=value,key=value>` flag: bulk parameter setting
+  - Config file support: `.ralph.json` with default model params per phase
+  - Task-level overrides: different params for different task types
+- Use cases:
+  - **Code generation**: lower temperature (0.2-0.4) for consistent, predictable code
+  - **Creative brainstorming**: higher temperature (0.7-0.9) for diverse ideas
+  - **Documentation**: medium temperature (0.5-0.6) for clear but engaging text
+  - **Bug fixes**: low temperature + specific model for reliable solutions
+  - **Architecture design**: high-quality model (GPT-4, Claude Opus) for complex reasoning
+  - **Quick tasks**: faster/cheaper model for simple operations
+- Benefits:
+  - **Cost optimization**: use cheaper models for simple tasks, premium for complex
+  - **Quality control**: tune parameters for specific task requirements
+  - **Flexibility**: different phases can use different model strategies
+  - **Experimentation**: A/B test different model configs for best results
+  - **Consistency**: standardize model behavior across team with config files
+- Configuration structure:
+  ```json
+  {
+    "models": {
+      "default": "gpt-4",
+      "phases": {
+        "dev": {
+          "model": "claude-3-opus",
+          "temperature": 0.3,
+          "max_tokens": 4000
+        },
+        "prd": {
+          "model": "gpt-4",
+          "temperature": 0.6,
+          "max_tokens": 3000
+        },
+        "brainstorm": {
+          "model": "gpt-4",
+          "temperature": 0.8,
+          "max_tokens": 2000
+        }
+      },
+      "task_types": {
+        "bug_fix": {"temperature": 0.2},
+        "feature": {"temperature": 0.5},
+        "architecture": {"model": "claude-3-opus"}
+      }
+    }
+  }
+  ```
+- Implementation approach:
+  - Parse CLI flags and merge with config file
+  - Pass parameters to AI provider APIs
+  - Log model usage/costs per task for tracking
+  - Validate parameters against model capabilities
+  - Fallback to defaults if custom model unavailable
+
+---
+
 ## Ideas Status
 - [ ] Idea 1 - Override/Append Prompt - In discussion
 - [ ] Idea 2 - Architecture Review First - In discussion
@@ -223,3 +301,4 @@
 - [ ] Idea 4 - Test-Driven Task Phase - In discussion
 - [ ] Idea 5 - Cleanup with Test Validation - In discussion
 - [ ] Idea 6 - Smart Task Creation - In discussion
+- [ ] Idea 7 - Run Tasks with Custom Model Parameters - In discussion

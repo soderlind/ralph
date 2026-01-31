@@ -9,7 +9,28 @@ Ralph automates the journey from **Business Requirements → Product Requirement
 - **Markdown-based documentation** (human-readable, LLM-friendly)
 - **AI-powered skill transformations** (BRD→PRD, PRD→Tasks)
 - **Vibe-Kanban integration** (task management and workspace orchestration)
-- **Phase-contextual commands** (clear workflow progression)
+- **Prompt generator** (copy-paste ready commands, solves permission issues!)
+
+---
+
+## 🚀 Quick Start (No Complex Setup!)
+
+Want to create tasks in Vibe-Kanban? Ralph generates the prompt for you:
+
+```bash
+# Generate a prompt
+./ralph.py tasks-kanban plans/tasks.json
+
+# Copy the output:
+# @ralph-tasks-kanban create tasks from plans/tasks.json...
+
+# Then run:
+copilot
+> [paste prompt here]
+> y  # Approve permissions when asked
+```
+
+That's it! **No pre-setup, no permission headaches.** Ralph shows you what to run.
 
 ---
 
@@ -18,14 +39,38 @@ Ralph automates the journey from **Business Requirements → Product Requirement
 Before using Ralph, ensure you have:
 
 ### Required
-1. **Python 3.8+** - Check with: `python --version`
-2. **GitHub Copilot CLI** - Install: `npm install -g @githubnext/github-copilot-cli`
-3. **Git** - Check with: `git --version`
-4. **Vibe-Kanban MCP** - Configured in your MCP settings (see Setup below)
+
+1. **Python 3.8+** 
+   ```bash
+   python3 --version  # Should show 3.8 or higher
+   ```
+
+2. **GitHub Copilot CLI** 
+   ```bash
+   # Install globally
+   npm install -g @githubnext/github-copilot-cli
+   
+   # Verify installation
+   copilot --version
+   ```
+
+3. **Git** 
+   ```bash
+   git --version  # Should be installed
+   ```
+
+4. **Vibe-Kanban Account & MCP Server**
+   - Sign up at: https://vibekanban.com/
+   - Create a project (you'll need the project name)
+   - MCP server configured (see Setup Step 2)
+
+5. **GitHub Copilot Subscription**
+   - Required for Copilot CLI to work
+   - Individual or Business plan
 
 ### Optional
-- **npx** (comes with Node.js) - For running Vibe-Kanban
-- **GitHub account** with Copilot subscription
+- **npx** (comes with Node.js) - For running Vibe-Kanban MCP
+- **jq** - For JSON parsing in shell scripts
 
 ---
 
@@ -35,89 +80,225 @@ Before using Ralph, ensure you have:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/ralph-copilot.git
+git clone https://github.com/ans4175/ralph-copilot.git
 cd ralph-copilot
 
 # Make ralph.py executable
 chmod +x ralph.py
 
+# Test installation
+./ralph.py --help
+
 # Optional: Add alias to your shell profile (~/.bashrc or ~/.zshrc)
-alias ralph="python /path/to/ralph-copilot/ralph.py"
+alias ralph="python3 /path/to/ralph-copilot/ralph.py"
+source ~/.bashrc  # or ~/.zshrc
 ```
 
-### Step 2: Configure Vibe-Kanban MCP
+### Step 2: Configure Vibe-Kanban MCP Server
 
-Ralph uses Vibe-Kanban MCP for task management. You need to configure it once:
+Ralph uses Vibe-Kanban MCP for task management. Configure it once:
 
-#### 2.1 Find your MCP config file
+#### 2.1 Create/Find your MCP config file
+
 ```bash
-# For Copilot CLI, it's usually at:
-~/.copilot/mcp-config.json
+# For GitHub Copilot CLI:
+mkdir -p ~/.copilot
+touch ~/.copilot/mcp-config.json
 
-# Or for Claude Desktop:
-~/.claude/mcp-config.json
+# For Claude Desktop (optional):
+mkdir -p ~/.claude
+touch ~/.claude/mcp-config.json
 ```
 
-#### 2.2 Add vibe-kanban MCP configuration
+#### 2.2 Add vibe-kanban MCP server configuration
 
-Open your MCP config and add:
+Open `~/.copilot/mcp-config.json` and add:
 
 ```json
 {
-  "vibe-kanban": {
-    "command": "npx",
-    "args": ["-y", "vibe-kanban@latest", "--mcp"]
+  "mcpServers": {
+    "vibe-kanban": {
+      "command": "npx",
+      "args": ["-y", "vibe-kanban@latest", "--mcp"],
+      "env": {}
+    }
   }
 }
 ```
 
+**Note:** If you already have other MCP servers configured, just add the `vibe-kanban` entry to your existing `mcpServers` object.
+
 **Reference**: See `config/mcp-config.json` in this repo for a complete example.
 
-### Step 3: Grant MCP Permissions (IMPORTANT!)
+### Step 3: Grant MCP Permissions (CRITICAL!)
 
-Vibe-Kanban MCP requires permission approval. This is a **one-time setup**:
+**This is a one-time setup that MUST be done before Ralph can work!**
+
+Vibe-Kanban MCP requires permission approval. This can ONLY be done in interactive Copilot mode:
 
 ```bash
 # 1. Start Copilot in interactive mode
 copilot
 
-# 2. In the chat, type:
+# 2. In the chat, type exactly this:
 Use vibe_kanban-list_projects to show all my projects
 
-# 3. When prompted, type 'y' to approve permission
-# Permission is saved permanently!
-
-# 4. Type 'exit' to quit
+# 3. You'll see a permission prompt like:
+#    "vibe-kanban wants to use vibe_kanban-list_projects. Allow? (y/n)"
+# 
+# 4. Type: y (and press Enter)
+#    Permission is saved permanently in ~/.copilot/permissions.json
+#
+# 5. You should see your Vibe-Kanban projects listed
+#
+# 6. Type: exit (to quit Copilot)
 ```
 
-**Why is this needed?** MCP tools require explicit user permission for security. This can only be granted in interactive mode.
+**Why is this needed?** MCP tools require explicit user permission for security. Ralph cannot grant permissions automatically - it can only be done in interactive mode.
 
-### Step 4: Configure Ralph (Optional)
+**Troubleshooting:**
+- If you don't see a permission prompt, the MCP server might not be configured correctly (check Step 2)
+- If permission is denied, you'll need to manually edit `~/.copilot/permissions.json`
+- Run `copilot -v` to see MCP server connection logs
 
-Edit `config/ralph.json` to customize:
+### Step 4: Configure Ralph for Your Project
+
+Edit `config/ralph.json` in the ralph-copilot directory:
 
 ```json
 {
+  "project_name": "ralph-sdlc-wrapper",
+  "version": "0.1.0",
   "vibe_kanban": {
-    "project_name": "MyProject",  // Set your Vibe-Kanban project name
-    "executor": "CLAUDE_CODE",     // Default coding agent
-    "model": "claude-sonnet-4.5"   // Default model
+    "project_name": "your-project-name",  // ← SET THIS to your Vibe-Kanban project name
+    "executor": "CLAUDE_CODE",             // Coding agent (CLAUDE_CODE, COPILOT, etc.)
+    "model": "claude-sonnet-4.5"           // Default LLM model
+  },
+  "paths": {
+    "brd": "plans/brd.md",
+    "prd": "plans/generated-prd.md",
+    "tasks": "plans/tasks.json",
+    "implementation_log": "docs/implementation-log.md",
+    "cleanup_log": "docs/cleanup-log.md",
+    "archive_dir": "plans/done"
   }
 }
 ```
 
-If you don't set `project_name`, Ralph will prompt you to select a project when running `tasks-kanban`.
+**To find your Vibe-Kanban project name:**
+```bash
+# List all projects
+copilot -p "Use vibe_kanban-list_projects to show all projects"
 
-### Step 5: Sync Skills (First-time only)
+# Or visit: https://vibekanban.com/projects
+```
 
-Ralph uses AI skills that need to be in your project scope:
+### Step 5: Sync Skills to Project Scope
+
+Ralph uses agentic skills that need to be synced to your project:
 
 ```bash
-# Run the sync script
+# Run the sync script (from ralph-copilot directory)
 ./scripts/sync-skills.sh
 
-# This copies skills to .copilot/skills/ and .claude/skills/
+# This copies skills/ to:
+#   - .copilot/skills/  (for Copilot CLI)
+#   - .claude/skills/   (for Claude Desktop)
+
+# You should see:
+# ✨ Skills synced successfully!
+#   - ralph-brd-to-prd
+#   - ralph-prd-to-tasks
+#   - ralph-tasks-kanban
+#   - ralph-run
+#   - ralph-task-review
+#   - ralph-cleanup-agent
 ```
+
+**Note:** Re-run this script whenever you update skill files.
+
+### Step 6: Verify Setup (Test End-to-End)
+
+Let's verify everything works:
+
+```bash
+# 1. Check ralph.py runs
+./ralph.py --help
+
+# 2. Test prompt generator (NEW DEFAULT!)
+./ralph.py tasks-kanban test-tasks.json
+# ✓ Should show a formatted prompt to copy-paste
+# ✓ Copy the @ralph-tasks-kanban prompt
+
+# 3. Run copilot and paste
+copilot
+> [paste the prompt from step 2]
+> y  # Approve permissions
+# ✓ Should create task in Vibe-Kanban
+
+# 4. View tasks at https://vibekanban.com/
+# ✓ You should see your test task in the project
+
+# 5. Test execute mode (after permissions granted)
+./ralph.py --execute tasks-kanban test-tasks.json
+# ✓ Should execute immediately
+```
+
+If all steps succeed, Ralph is ready to use! 🎉
+
+---
+
+## 📖 Two Ways to Use Ralph
+
+Ralph has **two modes** to fit different workflows:
+
+### 1. Prompt Mode (Default - Recommended for First-Time)
+
+**What it does:** Generates copy-paste ready prompts for Copilot CLI
+
+```bash
+# Shows formatted prompt
+./ralph.py tasks-kanban plans/tasks.json
+
+# Output:
+# ╭──────────────────────────────────────────────────╮
+# │ 📋 Copy this prompt into Copilot CLI:            │
+# ╰──────────────────────────────────────────────────╯
+#
+# @ralph-tasks-kanban create tasks from...
+#
+# [Instructions for use]
+
+# Then run:
+copilot
+> [paste prompt]
+```
+
+**Best for:**
+- ✅ First-time users (solves permission issues!)
+- ✅ Learning how skills work
+- ✅ Debugging (you can modify prompts)
+- ✅ Sharing commands with team
+
+### 2. Execute Mode (For Automation)
+
+**What it does:** Runs commands immediately (requires permissions already granted)
+
+```bash
+# Execute directly
+./ralph.py --execute tasks-kanban plans/tasks.json
+
+# Non-interactive (CI/CD)
+./ralph.py --execute --yolo run
+```
+
+**Best for:**
+- ✅ Automation scripts
+- ✅ CI/CD pipelines
+- ✅ Repeated tasks (after initial setup)
+- ✅ Power users who have granted permissions
+
+**Note:** If you see permission errors, switch to prompt mode!
 
 ---
 
@@ -336,7 +517,7 @@ Transform Business Requirements into Product Requirements Document.
 
 **Input**: Markdown file with business goals, market context, requirements  
 **Output**: `plans/generated-prd.md` (or custom path)  
-**AI Skill**: `@brd-to-prd`
+**AI Skill**: `@ralph-brd-to-prd`
 
 **Example**:
 ```bash
@@ -354,7 +535,7 @@ Break Product Requirements into atomic implementation tasks.
 
 **Input**: Markdown PRD file  
 **Output**: `plans/tasks.json` with tasks and dependencies  
-**AI Skill**: `@prd-to-tasks`
+**AI Skill**: `@ralph-prd-to-tasks`
 
 **Example**:
 ```bash
@@ -461,7 +642,7 @@ Review completed tasks and optionally cleanup.
 
 **Input**: Fetches DONE tasks from Vibe-Kanban  
 **Output**: Appends to `docs/implementation-log.md`  
-**AI Skill**: `@task-review`
+**AI Skill**: `@ralph-task-review`
 
 **Example**:
 ```bash
@@ -487,7 +668,7 @@ Cleanup reviewed tasks (archive, remove dependencies, delete from Vibe-Kanban).
 
 **Input**: Reads `docs/implementation-log.md` for reviewed task IDs  
 **Output**: Appends to `docs/cleanup-log.md`  
-**AI Skill**: `@cleanup-agent`
+**AI Skill**: `@ralph-cleanup-agent`
 
 **Example**:
 ```bash
@@ -530,13 +711,13 @@ ralph-copilot/
 │   └── vibe_kanban_client.py   # Vibe-Kanban MCP prompt generator
 │
 ├── skills/                     # AI skills for transformations
-│   ├── brd-to-prd/
+│   ├── ralph-brd-to-prd/
 │   │   └── skill.md            # BRD → PRD transformation
-│   ├── prd-to-tasks/
+│   ├── ralph-prd-to-tasks/
 │   │   └── skill.md            # PRD → Tasks breakdown
-│   ├── task-review/
+│   ├── ralph-task-review/
 │   │   └── skill.md            # Task review & summary
-│   └── cleanup-agent/
+│   └── ralph-cleanup-agent/
 │       └── skill.md            # Cleanup & dependency adjustment
 │
 ├── scripts/
@@ -595,13 +776,13 @@ Main configuration file with all Ralph settings:
   },
   
   "skills": {
-    "brd-to-prd": {
-      "path": "skills/brd-to-prd",
+    "ralph-brd-to-prd": {
+      "path": "skills/ralph-brd-to-prd",
       "model": "claude-sonnet-4.5",
       "temperature": 0.7
     },
-    "prd-to-tasks": {
-      "path": "skills/prd-to-tasks",
+    "ralph-prd-to-tasks": {
+      "path": "skills/ralph-prd-to-tasks",
       "model": "claude-sonnet-4.5",
       "temperature": 0.5
     }

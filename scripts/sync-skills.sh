@@ -18,9 +18,9 @@ for skill in skills/*/; do
   if [ -d "$skill" ]; then
     skill_name=$(basename "$skill")
     
-    # Skip if not a skill folder
-    if [ ! -f "$skill/skill.md" ]; then
-      echo "⚠️  Skipping $skill_name (no skill.md found)"
+    # Skip if not a skill folder (check for SKILL.md or skill.md)
+    if [ ! -f "$skill/SKILL.md" ] && [ ! -f "$skill/skill.md" ]; then
+      echo "⚠️  Skipping $skill_name (no SKILL.md or skill.md found)"
       continue
     fi
     
@@ -42,11 +42,15 @@ echo ""
 echo "✨ Skills synced successfully!"
 echo ""
 echo "Available skills:"
-echo "  - brd-to-prd"
-echo "  - prd-to-tasks"
-echo "  - task-review"
-echo "  - cleanup-agent"
+echo "  - ralph-brd-to-prd"
+echo "  - ralph-prd-to-tasks"
+echo "  - ralph-task-review"
+echo "  - ralph-cleanup-agent"
+echo "  - ralph-tasks-kanban"
+echo "  - ralph-run"
+echo "  - ralph-review"
+echo "  - ralph-cleanup"
 echo ""
-echo "Use in Copilot CLI: copilot -p '@brd-to-prd ...'"
-echo "Use in Claude: @brd-to-prd ..."
+echo "Use in Copilot CLI: copilot -p '@ralph-brd-to-prd ...'"
+echo "Use in Claude: @ralph-brd-to-prd ..."
 echo "Use in Ralph: ./ralph.py brd <file>"

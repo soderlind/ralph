@@ -26,6 +26,60 @@ def log(msg: str) -> None:
     print(f"[{now_iso()}] {msg}", flush=True)
 
 
+def detect_git_branch() -> Optional[str]:
+    """Detect current git branch from repository."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
+            cwd=Path.cwd()
+        )
+        branch = result.stdout.strip()
+        return branch if branch else None
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
+
+
+def print_prompt(skill_name: str, prompt_text: str, context: Optional[Dict[str, Any]] = None):
+    """
+    Display a formatted, copy-paste ready prompt for Copilot CLI.
+    
+    Args:
+        skill_name: Name of the skill (e.g., 'ralph-tasks-kanban')
+        prompt_text: The prompt to execute
+        context: Optional dict of context info to display
+    """
+    log("")
+    log("╭" + "─" * 70 + "╮")
+    log("│ 📋 Copy this prompt into Copilot CLI:" + " " * 32 + "│")
+    log("╰" + "─" * 70 + "╯")
+    log("")
+    
+    # Format prompt nicely (replace multiple spaces/newlines with single space)
+    formatted_prompt = " ".join(prompt_text.split())
+    log(f"@{skill_name} {formatted_prompt}")
+    
+    log("")
+    log("╭" + "─" * 70 + "╮")
+    log("│ 💡 How to use:" + " " * 55 + "│")
+    log("│   1. Run: copilot" + " " * 51 + "│")
+    log("│   2. Paste the prompt above" + " " * 41 + "│")
+    log("│   3. Approve permissions if asked" + " " * 35 + "│")
+    log("╰" + "─" * 70 + "╯")
+    
+    if context:
+        log("")
+        log("📊 Context:")
+        for key, value in context.items():
+            log(f"  • {key}: {value}")
+    
+    log("")
+    log("💡 Tip: Use --execute flag to run immediately (requires MCP permissions)")
+    log("")
+
+
 def load_config(config_path: Path = Path("config/ralph.json")) -> Dict[str, Any]:
     """Load Ralph configuration from JSON."""
     if not config_path.exists():
@@ -39,7 +93,7 @@ def verify_skill_exists(skill_name: str) -> bool:
     Verify that skill exists in project scope (.copilot/skills/ or .claude/skills/).
     
     Args:
-        skill_name: Name of skill folder (e.g., 'brd-to-prd')
+        skill_name: Name of skill folder (e.g., 'ralph-brd-to-prd')
         
     Returns:
         True if skill found, False otherwise
@@ -59,26 +113,29 @@ def invoke_copilot(
     skill_name: str,
     task_prompt: str,
     model: Optional[str] = None,
+    yolo: bool = False,
     **kwargs
 ) -> str:
     """
     Invoke GitHub Copilot CLI with skill reference.
     
     Coding agent will load skill from .copilot/skills/ or .claude/skills/.
+    Output streams in real-time to terminal.
     
     Args:
-        skill_name: Name of skill to use (e.g., 'brd-to-prd')
+        skill_name: Name of skill to use (e.g., 'ralph-brd-to-prd')
         task_prompt: The task/context for the skill to process
         model: Optional model override
+        yolo: Enable non-interactive mode (auto-approve all permissions)
         
     Returns:
-        Copilot's response as string
+        Empty string (output streams directly to terminal)
     """
     config = load_config()
     
     # Get model from args or config
     if model is None:
-        model = config.get("skills", {}).get("default_model", "claude-sonnet-4.5")
+        model = config.get("skills", {}).get("default_model", "claude-haiku-4.5")
     
     # Build prompt with skill reference (coding agent loads it)
     full_prompt = f"@{skill_name} {task_prompt}"
@@ -86,24 +143,29 @@ def invoke_copilot(
     cmd = [
         "copilot",
         "--model", model,
-        "--no-color",
-        "--stream", "off",
-        "-p", full_prompt
+        "--no-color"
     ]
     
+    # Add --yolo flag if non-interactive mode
+    if yolo:
+        cmd.append("--yolo")
+    
+    cmd.extend(["-p", full_prompt])
+    
     log(f"🤖 Invoking Copilot with @{skill_name} (model: {model})...")
+    log("━" * 60)
     
     try:
+        # Run without capturing output - streams in real-time
         result = subprocess.run(
             cmd,
-            capture_output=True,
-            text=True,
             timeout=300,  # 5 minutes
             check=True
         )
-        return result.stdout.strip()
+        log("━" * 60)
+        return ""  # Output already displayed in terminal
     except subprocess.TimeoutExpired:
-        log("❌ Copilot timed out (5 minutes)")
+        log("\n⏱️  Copilot timed out (5 minutes)")
         sys.exit(1)
     except subprocess.CalledProcessError as e:
         log(f"❌ Copilot failed with exit code {e.returncode}")
@@ -118,7 +180,7 @@ def cmd_brd_prd(args: argparse.Namespace) -> int:
     """
     Handle 'ralph brd-prd' command.
     
-    Reads BRD markdown file, invokes brd-to-prd skill, saves PRD markdown.
+    Reads BRD markdown file, invokes ralph-brd-to-prd skill, saves PRD markdown.
     """
     brd_path = Path(args.brd_file)
     
@@ -127,7 +189,7 @@ def cmd_brd_prd(args: argparse.Namespace) -> int:
         return 1
     
     # Verify skill exists in project scope
-    skill_name = "brd-to-prd"
+    skill_name = "ralph-brd-to-prd"
     if not verify_skill_exists(skill_name):
         return 1
     
@@ -157,7 +219,7 @@ Output the PRD as clean markdown with proper sections:
 
 Output ONLY the markdown content (no code fences, no JSON, just markdown)."""
     
-    # Invoke Copilot (it loads @brd-to-prd from project scope)
+    # Invoke Copilot (it loads @ralph-brd-to-prd from project scope)
     config = load_config()
     skill_config = config.get("skills", {}).get("brd_to_prd", {})
     model = skill_config.get("model", "claude-sonnet-4.5")
@@ -201,7 +263,7 @@ def cmd_prd_tasks(args: argparse.Namespace) -> int:
     """
     Handle 'ralph prd' command.
     
-    Reads PRD markdown file, invokes prd-to-tasks skill, saves tasks.json.
+    Reads PRD markdown file, invokes ralph-prd-to-tasks skill, saves tasks.json.
     """
     prd_path = Path(args.prd_file)
     
@@ -210,7 +272,7 @@ def cmd_prd_tasks(args: argparse.Namespace) -> int:
         return 1
     
     # Verify skill exists in project scope
-    skill_name = "prd-to-tasks"
+    skill_name = "ralph-prd-to-tasks"
     if not verify_skill_exists(skill_name):
         return 1
     
@@ -230,7 +292,7 @@ PRD File: {prd_path}
 
 Output ONLY the tasks JSON array (no markdown fences, no extra text)."""
     
-    # Invoke Copilot (it loads @prd-to-tasks from project scope)
+    # Invoke Copilot (it loads @ralph-prd-to-tasks from project scope)
     config = load_config()
     skill_config = config.get("skills", {}).get("prd_to_tasks", {})
     model = skill_config.get("model", "claude-sonnet-4.5")
@@ -351,7 +413,7 @@ Output ONLY the tasks JSON array (no markdown fences, no extra text)."""
     log("Next steps:")
     log("  1. Review tasks in: " + str(output_path))
     log("  2. Adjust dependencies if needed")
-    log("  3. Create tasks in Vibe Kanban: ralph tasks")
+    log("  3. Create tasks in Vibe Kanban: ralph tasks-kanban")
     
     return 0
 
@@ -360,930 +422,318 @@ def cmd_tasks_kanban(args: argparse.Namespace) -> int:
     """
     Handle 'ralph tasks-kanban' command.
     
-    Creates tasks in Vibe Kanban via MCP using coding agent.
-    Defaults to plans/tasks.json if no path provided.
+    Default: Shows copy-paste prompt for Copilot CLI
+    With --execute: Creates tasks in Vibe Kanban immediately
     """
     config = load_config()
     tasks_path = Path(args.tasks_file or config["paths"]["tasks"])
-    
-    if not tasks_path.exists():
-        if args.tasks_file:
-            log(f"❌ Tasks file not found: {tasks_path}")
-        else:
-            log(f"❌ Tasks file not found: {tasks_path} (default location)")
-            log(f"💡 Generate tasks first: ralph prd-tasks <prd-file>")
-        return 1
-    
-    log(f"📖 Reading tasks: {tasks_path}")
-    tasks_content = tasks_path.read_text(encoding="utf-8")
-    
-    try:
-        tasks_data = json.loads(tasks_content)
-    except json.JSONDecodeError as e:
-        log(f"❌ Invalid tasks JSON: {e}")
-        return 1
-    
-    if not isinstance(tasks_data, list):
-        log(f"❌ Expected tasks JSON array")
-        return 1
-    
-    # Test if vibe-kanban MCP is running
-    log("🔍 Checking if vibe-kanban MCP is running...")
-    model = config.get("vibe_kanban", {}).get("model", "claude-sonnet-4.5")
-    
-    try:
-        test_result = subprocess.run(
-            ["copilot", "--model", model, "--no-color", "--stream", "off", "-p", 
-             "Use the vibe_kanban-list_projects MCP tool to list all projects. Return only 'OK' if the tool is available, or 'ERROR' if not."],
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=True
-        )
-        
-        if "OK" in test_result.stdout or "vibe_kanban" in test_result.stdout.lower():
-            log("✅ vibe-kanban MCP is running")
-        else:
-            log("❌ vibe-kanban MCP may not be running")
-            log("💡 Please ensure vibe-kanban MCP is configured in your MCP settings")
-            log("   See config/mcp-config.json for configuration example")
-            return 1
-    except Exception as e:
-        log(f"❌ Failed to connect to vibe-kanban MCP: {e}")
-        log("💡 Please ensure vibe-kanban MCP is running")
-        return 1
-    
-    # Get project name from config
     project_name = config.get("vibe_kanban", {}).get("project_name")
     
-    if project_name:
-        log(f"📋 Using configured project: {project_name}")
-    else:
-        log("📋 No project name configured. Will prompt for selection...")
+    if not project_name:
+        log("❌ No project_name configured in config/ralph.json")
+        log("💡 Set vibe_kanban.project_name in config/ralph.json")
+        return 1
     
-    # Build comprehensive prompt that handles project selection
-    log("🤖 Preparing task creation via MCP...")
-    model = config.get("vibe_kanban", {}).get("model", "claude-sonnet-4.5")
+    # Verify skill exists
+    skill_name = "ralph-tasks-kanban"
+    if not verify_skill_exists(skill_name):
+        return 1
     
-    # Build task creation prompt with project selection logic
-    task_list = "\n".join([f"- {t['id']}: {t['description']}" for t in tasks_data[:5]])
-    if len(tasks_data) > 5:
-        task_list += f"\n... and {len(tasks_data) - 5} more tasks"
+    yolo_mode = getattr(args, 'yolo', False)
+    execute_mode = getattr(args, 'execute', False)
     
-    agent_prompt = f"""You are helping create tasks in Vibe Kanban.
+    prompt = f"""Create tasks from {tasks_path} into vibe-kanban project "{project_name}".
 
-STEP 1: Get the project
-Use vibe_kanban-list_projects to list all available projects.
+Use @{skill_name} skill to:
+1. Use vibe_kanban-list_projects MCP to find project ID for "{project_name}"
+2. Read and validate tasks JSON file
+3. Create each task in vibe-kanban with proper dependencies
+4. Report summary of results
 
-{"STEP 2: Find project '" + project_name + "'" if project_name else "STEP 2: Ask user to select a project"}
-{f"Look for a project with name matching '{project_name}' (case insensitive)." if project_name else "Show the user the list of projects and ask them to type the project name."}
-{f"If found, use that project's ID. If not found, show available projects and ask user to select." if project_name else ""}
-
-STEP 3: Create all {len(tasks_data)} tasks
-Use vibe_kanban-create_task for each task with:
-- project_id: (from step 2)
-- title: Task ID + description (e.g., "TASK-001: Create TEST.md file")
-- description: Full task details including steps, acceptance criteria, and dependencies
-
-Tasks to create:
-{task_list}
-
-Full task data is in the JSON below:
-{json.dumps(tasks_data, indent=2)}
-
-After creating all tasks, respond with:
-"✅ Created {len(tasks_data)} tasks in project [project_name]"
-"""
+Tasks file: {tasks_path}
+Project name: {project_name}
+{'Non-interactive mode: Skip all confirmation prompts, auto-proceed with all operations.' if yolo_mode else ''}"""
     
-    log(f"🚀 Creating {len(tasks_data)} tasks in Vibe Kanban...")
-    log("   (This may take a minute...)")
+    skill_config = config.get("skills", {}).get("tasks_kanban", {})
+    model = skill_config.get("model", "claude-haiku-4.5")
     
-    try:
-        result = subprocess.run(
-            ["copilot", "--model", model, "-p", agent_prompt],
-            text=True,
-            timeout=300,
-            check=True
-        )
+    if execute_mode:
+        # Execute immediately
+        mode_label = "🚀 YOLO MODE" if yolo_mode else "🤖"
+        log(f"{mode_label} Using @{skill_name} to create tasks from {tasks_path}")
         
-        log("✅ Tasks created successfully!")
+        response = invoke_copilot(skill_name, prompt, model=model, yolo=yolo_mode)
+        
+        log("✅ Task creation complete")
         log(f"💡 View tasks at: https://vibekanban.com/")
-        return 0
-        
-    except subprocess.TimeoutExpired:
-        log("❌ Task creation timed out (>5 minutes)")
-        return 1
-    except Exception as e:
-        log(f"❌ Failed to create tasks: {e}")
-        return 1
+    else:
+        # Show copy-paste prompt
+        context = {
+            "Command": "tasks-kanban",
+            "Tasks file": str(tasks_path),
+            "Project": project_name,
+            "Skill": skill_name,
+            "Model": model
+        }
+        print_prompt(skill_name, prompt, context)
+    
+    return 0
 
 
 def cmd_run(args: argparse.Namespace) -> int:
     """
     Handle 'ralph run' command.
     
-    Starts tasks with no dependencies from Vibe Kanban.
-    Can be called multiple times for progressive execution.
+    Default: Shows copy-paste prompt for Copilot CLI
+    With --execute: Starts ready tasks immediately
     """
     config = load_config()
     
-    # Get project_id from args or config
-    project_id = args.project_id if hasattr(args, 'project_id') and args.project_id else None
-    if not project_id:
-        project_id = config.get("vibe_kanban", {}).get("project_id")
+    # Get project_name from args or config
+    project_name = args.project_name if hasattr(args, 'project_name') and args.project_name else None
+    if not project_name:
+        project_name = config.get("vibe_kanban", {}).get("project_name")
     
-    if not project_id:
-        log("❌ No project_id configured")
-        log("💡 Set vibe_kanban.project_id in config/ralph.json or use --project-id")
+    if not project_name:
+        log("❌ No project_name configured")
+        log("💡 Set vibe_kanban.project_name in config/ralph.json or use --project-name")
         return 1
     
-    log(f"🚀 Starting tasks from Vibe Kanban project: {project_id}")
-    
-    # Auto-detect current git repository
-    log("🔍 Detecting current git repository...")
-    try:
-        # Get remote URL
-        result = subprocess.run(
-            ["git", "remote", "get-url", "origin"],
-            capture_output=True,
-            text=True,
-            check=True,
-            timeout=10
-        )
-        repo_url = result.stdout.strip()
-        
-        # Extract repo name from URL
-        # Handle both https://github.com/user/repo.git and git@github.com:user/repo.git
-        if repo_url.endswith(".git"):
-            repo_url = repo_url[:-4]
-        repo_name = repo_url.split("/")[-1]
-        
-        log(f"✅ Repository: {repo_name}")
-    except Exception as e:
-        log(f"❌ Failed to detect git repository: {e}")
-        log("💡 Make sure you're in a git repository")
+    # Verify skill exists
+    skill_name = "ralph-run"
+    if not verify_skill_exists(skill_name):
         return 1
     
-    # Get repo config
-    repo_config = config.get("vibe_kanban", {}).get("repo_config", {})
-    base_branch = repo_config.get("base_branch", "main")
+    yolo_mode = getattr(args, 'yolo', False)
+    execute_mode = getattr(args, 'execute', False)
     
-    # Step 1: List tasks with status='todo' from Vibe Kanban
-    log("📋 Fetching todo tasks from Vibe Kanban...")
-    
-    model = config.get("vibe_kanban", {}).get("model", "claude-sonnet-4.5")
-    
-    list_prompt = f"""Use the vibe_kanban-list_tasks MCP tool to get all tasks with status='todo' from project {project_id}.
-
-Return ONLY a JSON array of tasks with these fields:
-[
-  {{
-    "task_id": "uuid",
-    "title": "task title",
-    "description": "task description (may contain dependencies)"
-  }},
-  ...
-]
-
-Output ONLY the JSON array, no markdown fences, no extra text."""
-    
-    try:
-        result = subprocess.run(
-            ["copilot", "--model", model, "--no-color", "--stream", "off", "-p", list_prompt],
-            capture_output=True,
-            text=True,
-            timeout=60,
-            check=True
-        )
-        response = result.stdout.strip()
-        
-        # Clean and parse JSON
-        import re
-        response_cleaned = re.sub(r'\x1b\[[0-9;]*m', '', response)
-        response_cleaned = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', response_cleaned)
-        
-        if "```json" in response_cleaned:
-            response_cleaned = response_cleaned.split("```json", 1)[1].split("```")[0]
-        elif "```" in response_cleaned:
-            response_cleaned = response_cleaned.split("```", 1)[1].split("```")[0]
-        
-        tasks = json.loads(response_cleaned.strip())
-        
-        if not tasks:
-            log("✅ No tasks in todo status")
-            log("💡 All tasks may be in progress or completed!")
-            return 0
-        
-        log(f"✅ Found {len(tasks)} todo tasks")
-        
-    except Exception as e:
-        log(f"❌ Failed to fetch tasks: {e}")
-        return 1
-    
-    # Step 2: Filter tasks with valid Ralph task IDs
-    log("🔍 Filtering tasks with valid task IDs...")
-    
-    valid_tasks = []
-    skipped_tasks = []
-    
-    import re
-    task_id_pattern = re.compile(r'\b([A-Z]+-\d+)\b')
-    
-    for task in tasks:
-        title = task.get("title", "")
-        description = task.get("description", "")
-        
-        # Look for task ID pattern in title or description
-        match = task_id_pattern.search(title + " " + description)
-        
-        if match:
-            # Extract and store the Ralph task ID
-            task["ralph_task_id"] = match.group(1)
-            valid_tasks.append(task)
-        else:
-            skipped_tasks.append(task)
-    
-    log(f"✅ Valid Ralph tasks: {len(valid_tasks)}")
-    if skipped_tasks:
-        log(f"⏭️  Skipped (no task ID): {len(skipped_tasks)} tasks")
-    
-    if not valid_tasks:
-        log("")
-        log("💡 No valid Ralph tasks found in todo status")
-        log("   Tasks created by ralph should have IDs like TASK-001, TASK-002, etc.")
-        return 0
-    
-    # Step 3: Parse dependencies and filter ready tasks
-    log("🔍 Analyzing dependencies...")
-    
-    ready_tasks = []
-    blocked_tasks = []
-    
-    for task in tasks:
-        description = task.get("description", "")
-        
-        # Parse dependencies using regex patterns
-        # Look for: "Depends on: TASK-001, TASK-002" or "Dependencies: TASK-XXX"
-        import re
-        dep_patterns = [
-            r'Depends on:\s*([A-Z]+-\d+(?:\s*,\s*[A-Z]+-\d+)*)',
-            r'Dependencies:\s*([A-Z]+-\d+(?:\s*,\s*[A-Z]+-\d+)*)',
-            r'Dependency:\s*([A-Z]+-\d+)',
-        ]
-        
-        has_dependencies = False
-        for pattern in dep_patterns:
-            if re.search(pattern, description, re.IGNORECASE):
-                has_dependencies = True
-                break
-        
-        if has_dependencies:
-            blocked_tasks.append(task)
-        else:
-            ready_tasks.append(task)
-    
-    log(f"✅ Ready to start: {len(ready_tasks)} tasks")
-    log(f"⏸️  Blocked by dependencies: {len(blocked_tasks)} tasks")
-    
-    if not ready_tasks:
-        log("")
-        log("💡 No tasks ready to start (all have dependencies)")
-        log("   Complete some tasks first, then run 'ralph run' again")
-        return 0
-    
-    # Step 4: Respect max_parallel_tasks limit
-    max_parallel = config.get("execution", {}).get("max_parallel_tasks", 3)
-    tasks_to_start = ready_tasks[:max_parallel]
-    
-    if len(ready_tasks) > max_parallel:
-        log(f"⚠️  Limiting to {max_parallel} tasks (max_parallel_tasks config)")
-    
-    # Step 5: Start workspace sessions
-    log(f"\n🚀 Starting {len(tasks_to_start)} workspace sessions...")
-    
+    # Get executor and repo config
     executor = config.get("vibe_kanban", {}).get("executor", "CLAUDE_CODE")
     variant = config.get("vibe_kanban", {}).get("variant")
+    repo_config = config.get("vibe_kanban", {}).get("repo_config", {})
     
-    started = []
-    failed = []
+    # Detect current git branch (override config)
+    detected_branch = detect_git_branch()
+    if detected_branch:
+        repo_config = repo_config.copy()  # Don't modify original
+        repo_config["base_branch"] = detected_branch
     
-    for task in tasks_to_start:
-        task_id = task.get("task_id")
-        title = task.get("title", "Untitled")
-        ralph_task_id = task.get("ralph_task_id", "UNKNOWN")
-        
-        log(f"\n📌 Starting: [{ralph_task_id}] {title}")
-        log(f"   Vibe Kanban ID: {task_id}")
-        
-        # Build prompt to start workspace session
-        start_prompt = f"""Use the vibe_kanban-start_workspace_session MCP tool to start work on task {task_id}.
+    prompt = f"""Execute ready tasks from vibe-kanban project "{project_name}".
 
-Parameters:
-- task_id: {task_id}
-- executor: {executor}
-{"- variant: " + variant if variant else ""}
-- repos: [
-    {{
-      "repo": "{repo_name}",
-      "base_branch": "{base_branch}"
-    }}
-  ]
+Use @{skill_name} skill to:
+1. Use vibe_kanban-list_projects MCP to find project ID for "{project_name}"
+2. Detect git repository context (URL, branch)
+3. List tasks with status='todo' and no blocking dependencies
+4. Start workspace session for each ready task
+5. Report summary of started tasks
 
-After starting, return a JSON response:
-{{
-  "success": true,
-  "task_id": "{task_id}",
-  "message": "Workspace started"
-}}
+Project name: {project_name}
+Executor: {executor}
+{f"Variant: {variant}" if variant else ""}
+Repository config: {json.dumps(repo_config, indent=2)}
 
-Or if failed:
-{{
-  "success": false,
-  "task_id": "{task_id}",
-  "error": "error message"
-}}"""
+Limit to first 3 tasks if many are ready (max_parallel_tasks).
+{'Non-interactive mode: Skip all confirmation prompts, auto-start all ready tasks.' if yolo_mode else ''}"""
+    
+    skill_config = config.get("skills", {}).get("run", {})
+    model = skill_config.get("model", "claude-haiku-4.5")
+    
+    if execute_mode:
+        # Execute immediately
+        mode_label = "🚀 YOLO MODE" if yolo_mode else "🚀"
+        log(f"{mode_label} Starting ready tasks from project: {project_name}")
+        log(f"🤖 Using @{skill_name} skill")
         
-        try:
-            result = subprocess.run(
-                ["copilot", "--model", model, "--no-color", "--stream", "off", "-p", start_prompt],
-                capture_output=True,
-                text=True,
-                timeout=60,
-                check=True
-            )
-            
-            # Consider it started if command succeeded
-            started.append({"task_id": task_id, "title": title, "ralph_id": ralph_task_id})
-            log(f"   ✅ Started")
-            
-        except Exception as e:
-            failed.append({"task_id": task_id, "title": title, "ralph_id": ralph_task_id, "error": str(e)})
-            log(f"   ❌ Failed: {e}")
+        response = invoke_copilot(skill_name, prompt, model=model, yolo=yolo_mode)
+        
+        log("\n✅ Run complete")
+        log("💡 View workspace sessions at: https://vibekanban.com/")
+    else:
+        # Show copy-paste prompt
+        context = {
+            "Command": "run",
+            "Project": project_name,
+            "Executor": executor,
+            "Skill": skill_name,
+            "Model": model
+        }
+        print_prompt(skill_name, prompt, context)
     
-    # Step 6: Report summary
-    log("\n" + "="*60)
-    log("📊 Summary")
-    log("="*60)
-    log(f"✅ Started: {len(started)} tasks")
-    for task in started:
-        ralph_id = task.get('ralph_id', 'N/A')
-        log(f"   • [{ralph_id}] {task['title']} ({task['task_id']})")
-    
-    if failed:
-        log(f"\n❌ Failed: {len(failed)} tasks")
-        for task in failed:
-            ralph_id = task.get('ralph_id', 'N/A')
-            log(f"   • [{ralph_id}] {task['title']} ({task['task_id']})")
-            log(f"     Error: {task['error']}")
-    
-    if skipped_tasks:
-        log(f"\n⏭️  Skipped: {len(skipped_tasks)} tasks (no Ralph task ID)")
-        for task in skipped_tasks[:5]:  # Show first 5
-            log(f"   • {task.get('title', 'Untitled')}")
-        if len(skipped_tasks) > 5:
-            log(f"   ... and {len(skipped_tasks) - 5} more")
-    
-    if blocked_tasks:
-        log(f"\n⏸️  Blocked: {len(blocked_tasks)} tasks (have dependencies)")
-    
-    if len(ready_tasks) > max_parallel:
-        remaining = len(ready_tasks) - max_parallel
-        log(f"\n💡 {remaining} more tasks ready - run 'ralph run' again to start them")
-    
-    log("")
-    log("👉 Next steps:")
-    log("   1. Monitor task progress in Vibe Kanban dashboard")
-    log("   2. Run 'ralph run' again to start more tasks")
-    log("   3. Review completed work: ralph review")
-    
-    return 0 if not failed else 1
+    return 0
 
 
 def cmd_review(args: argparse.Namespace) -> int:
     """
     Handle 'ralph review' command.
     
-    Reviews completed tasks, appends to implementation-log.md.
-    By default, auto-runs cleanup unless --no-cleanup flag is set.
+    Reviews completed tasks via @ralph-task-review skill.
+    Auto-runs cleanup unless --no-cleanup flag is set.
     """
     config = load_config()
     
-    # Get project_id from config
-    project_id = config.get("vibe_kanban", {}).get("project_id")
-    if not project_id:
-        log("❌ No project_id configured")
-        log("💡 Set vibe_kanban.project_id in config/ralph.json")
+def cmd_review(args: argparse.Namespace) -> int:
+    """
+    Handle 'ralph review' command.
+    
+    Default: Shows copy-paste prompt for Copilot CLI
+    With --execute: Reviews completed tasks immediately
+    Auto-runs cleanup unless --no-cleanup flag is set.
+    """
+    config = load_config()
+    
+    # Get project_name from config
+    project_name = config.get("vibe_kanban", {}).get("project_name")
+    if not project_name:
+        log("❌ No project_name configured")
+        log("💡 Set vibe_kanban.project_name in config/ralph.json")
         return 1
     
-    log(f"📋 Reviewing completed tasks from Vibe Kanban project: {project_id}")
-    
-    # Step 1: List tasks with status='done' from Vibe Kanban
-    log("🔍 Fetching done tasks...")
-    
-    model = config.get("vibe_kanban", {}).get("model", "claude-sonnet-4.5")
-    
-    list_prompt = f"""Use the vibe_kanban-list_tasks MCP tool to get all tasks with status='done' from project {project_id}.
-
-Return ONLY a JSON array of tasks with these fields:
-[
-  {{
-    "task_id": "uuid",
-    "title": "task title",
-    "description": "task description (full details)"
-  }},
-  ...
-]
-
-Output ONLY the JSON array, no markdown fences, no extra text."""
-    
-    try:
-        result = subprocess.run(
-            ["copilot", "--model", model, "--no-color", "--stream", "off", "-p", list_prompt],
-            capture_output=True,
-            text=True,
-            timeout=60,
-            check=True
-        )
-        response = result.stdout.strip()
-        
-        # Clean and parse JSON
-        import re
-        response_cleaned = re.sub(r'\x1b\[[0-9;]*m', '', response)
-        response_cleaned = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', response_cleaned)
-        
-        if "```json" in response_cleaned:
-            response_cleaned = response_cleaned.split("```json", 1)[1].split("```")[0]
-        elif "```" in response_cleaned:
-            response_cleaned = response_cleaned.split("```", 1)[1].split("```")[0]
-        
-        done_tasks = json.loads(response_cleaned.strip())
-        
-        if not done_tasks:
-            log("✅ No tasks to review (no done tasks)")
-            return 0
-        
-        log(f"✅ Found {len(done_tasks)} done tasks")
-        
-    except Exception as e:
-        log(f"❌ Failed to fetch done tasks: {e}")
+    # Verify skill exists
+    skill_name = "ralph-task-review"
+    if not verify_skill_exists(skill_name):
         return 1
     
-    # Step 2: Filter tasks with valid Ralph task IDs
-    log("🔍 Filtering tasks with Ralph IDs...")
-    
-    valid_tasks = []
-    task_id_pattern = re.compile(r'\b([A-Z]+-\d+)\b')
-    
-    for task in done_tasks:
-        title = task.get("title", "")
-        description = task.get("description", "")
-        
-        match = task_id_pattern.search(title + " " + description)
-        if match:
-            task["ralph_task_id"] = match.group(1)
-            valid_tasks.append(task)
-    
-    if not valid_tasks:
-        log("⚠️  No valid Ralph tasks found in done status")
-        log("💡 Only tasks with IDs like TASK-001 are reviewed")
-        return 0
-    
-    log(f"✅ Reviewing {len(valid_tasks)} Ralph tasks")
-    
-    # Step 3: Generate reviews using @task-review skill
-    log("\n📝 Generating task reviews...")
-    
-    reviews = []
-    failed_reviews = []
-    
-    for task in valid_tasks:
-        ralph_id = task.get("ralph_task_id", "UNKNOWN")
-        title = task.get("title", "Untitled")
-        description = task.get("description", "")
-        
-        log(f"\n  Reviewing: [{ralph_id}] {title}")
-        
-        # Build prompt for @task-review skill
-        review_prompt = f"""Review this completed task and generate a summary.
-
-Task ID: {ralph_id}
-Title: {title}
-
-Description:
-{description}
-
-Generate a markdown summary with:
-- Status: Completed
-- Summary: Brief description of what was implemented
-- Technical Decisions: Key technical choices made
-- Challenges: Any challenges encountered
-- Follow-ups: Any follow-up work needed
-
-Output ONLY the markdown summary (no code fences, no extra text).
-Start with: ### {ralph_id}: {title}"""
-        
-        try:
-            # Use @task-review skill
-            review_response = invoke_copilot("task-review", review_prompt, model=model)
-            
-            # Clean response
-            review_cleaned = review_response.strip()
-            if review_cleaned.startswith("```markdown"):
-                review_cleaned = review_cleaned.split("```markdown", 1)[1]
-            elif review_cleaned.startswith("```"):
-                review_cleaned = review_cleaned.split("```", 1)[1]
-            if review_cleaned.endswith("```"):
-                review_cleaned = review_cleaned.rsplit("```", 1)[0]
-            review_cleaned = review_cleaned.strip()
-            
-            reviews.append(review_cleaned)
-            log(f"  ✅ Reviewed")
-            
-        except Exception as e:
-            log(f"  ⚠️  Review failed: {e}")
-            failed_reviews.append({"id": ralph_id, "title": title, "error": str(e)})
-    
-    if not reviews:
-        log("\n❌ All reviews failed")
-        return 1
-    
-    # Step 4: Append to docs/implementation-log.md
-    log(f"\n💾 Appending {len(reviews)} reviews to implementation log...")
-    
-    log_path = Path(config.get("paths", {}).get("implementation_log", "docs/implementation-log.md"))
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    # Build log entry
-    log_entry = f"\n## [{now_iso()}] Task Review\n\n"
-    log_entry += "\n\n".join(reviews)
-    log_entry += "\n"
-    
-    # Append to log
-    try:
-        with open(log_path, "a", encoding="utf-8") as f:
-            f.write(log_entry)
-        log(f"✅ Appended to: {log_path}")
-    except Exception as e:
-        log(f"❌ Failed to append to log: {e}")
-        return 1
-    
-    # Step 5: Report summary
-    log("\n" + "="*60)
-    log("📊 Review Summary")
-    log("="*60)
-    log(f"✅ Reviewed: {len(reviews)} tasks")
-    
-    if failed_reviews:
-        log(f"⚠️  Failed: {len(failed_reviews)} tasks")
-        for item in failed_reviews:
-            log(f"   • [{item['id']}] {item['title']}")
-    
-    # Step 6: Auto-run cleanup unless --no-cleanup
+    yolo_mode = getattr(args, 'yolo', False)
+    execute_mode = getattr(args, 'execute', False)
     no_cleanup = getattr(args, 'no_cleanup', False)
     
-    if no_cleanup:
-        log("\n💡 Skipping cleanup (--no-cleanup flag)")
-        log("   Run 'ralph cleanup' when ready")
+    prompt = f"""Review completed tasks from vibe-kanban project "{project_name}".
+
+Use @{skill_name} skill to:
+1. Use vibe_kanban-list_projects MCP to find project ID for "{project_name}"
+2. List all tasks with status='done' from project
+3. Filter tasks with valid Ralph IDs (TASK-XXX pattern)
+4. Generate implementation summary for each task
+5. Append summaries to docs/implementation-log.md
+6. Report results
+{'7. Trigger @ralph-cleanup-agent to archive reviewed tasks (auto-cleanup enabled)' if not no_cleanup else ''}
+
+Project name: {project_name}
+Implementation log: docs/implementation-log.md
+Auto-cleanup: {'Yes' if not no_cleanup else 'No'}
+
+Generate reviews with format:
+- Task ID and title
+- Implementation summary (150-300 words)
+- Key technical decisions
+- Tests/documentation updates
+- Challenges overcome
+
+{'Non-interactive mode: Skip all confirmation prompts, auto-proceed with review.' if yolo_mode else ''}"""
+    
+    skill_config = config.get("skills", {}).get("task_review", {})
+    model = skill_config.get("model", "claude-haiku-4.5")
+    
+    if execute_mode:
+        # Execute immediately
+        mode_label = "🚀 YOLO MODE" if yolo_mode else "📋"
+        log(f"{mode_label} Reviewing completed tasks from project: {project_name}")
+        log(f"🤖 Using @{skill_name} skill")
+        
+        response = invoke_copilot(skill_name, prompt, model=model, yolo=yolo_mode)
+        
+        log("\n✅ Review complete")
+        
+        # Auto-run cleanup unless --no-cleanup
+        if no_cleanup:
+            log("\n💡 Skipping cleanup (--no-cleanup flag)")
+            log("   Run 'ralph cleanup' when ready")
+        else:
+            log("\n🧹 Auto-running cleanup...")
+            log("="*60)
+            cleanup_result = cmd_cleanup(args)
+            if cleanup_result != 0:
+                log("⚠️  Cleanup encountered errors")
+                return 1
     else:
-        log("\n🧹 Auto-running cleanup...")
-        log("="*60)
-        cleanup_result = cmd_cleanup(args)
-        if cleanup_result != 0:
-            log("⚠️  Cleanup encountered errors")
-            return 1
+        # Show copy-paste prompt
+        context = {
+            "Command": "review",
+            "Project": project_name,
+            "Skill": skill_name,
+            "Model": model,
+            "Auto-cleanup": "No" if no_cleanup else "Yes"
+        }
+        print_prompt(skill_name, prompt, context)
     
     return 0
+
 
 
 def cmd_cleanup(args: argparse.Namespace) -> int:
     """
     Handle 'ralph cleanup' command.
     
-    Cleans up completed tasks that have already been reviewed.
+    Default: Shows copy-paste prompt for Copilot CLI
+    With --execute: Archives reviewed tasks immediately
     Only processes tasks that exist in implementation-log.md AND are in done status.
     """
     config = load_config()
     
-    # Get project_id from config
-    project_id = config.get("vibe_kanban", {}).get("project_id")
-    if not project_id:
-        log("❌ No project_id configured")
-        log("💡 Set vibe_kanban.project_id in config/ralph.json")
+    # Get project_name from config
+    project_name = config.get("vibe_kanban", {}).get("project_name")
+    if not project_name:
+        log("❌ No project_name configured")
+        log("💡 Set vibe_kanban.project_name in config/ralph.json")
         return 1
     
-    log(f"🧹 Cleaning up reviewed tasks from Vibe Kanban project: {project_id}")
+    # Verify skill exists
+    skill_name = "ralph-cleanup-agent"
+    if not verify_skill_exists(skill_name):
+        return 1
     
-    # Step 1: Read implementation-log.md to get reviewed task IDs
-    log("📖 Reading implementation log...")
+    yolo_mode = getattr(args, 'yolo', False)
+    execute_mode = getattr(args, 'execute', False)
     
+    # Get paths from config
     log_path = Path(config.get("paths", {}).get("implementation_log", "docs/implementation-log.md"))
-    
-    if not log_path.exists():
-        log(f"⚠️  Implementation log not found: {log_path}")
-        log("💡 Run 'ralph review' first to review tasks")
-        return 0
-    
-    # Parse log to extract reviewed task IDs
-    reviewed_task_ids = set()
-    try:
-        log_content = log_path.read_text(encoding="utf-8")
-        
-        # Extract task IDs from log (look for patterns like TASK-001, TASK-002)
-        import re
-        task_id_pattern = re.compile(r'\b([A-Z]+-\d+)\b')
-        matches = task_id_pattern.findall(log_content)
-        reviewed_task_ids = set(matches)
-        
-        if not reviewed_task_ids:
-            log("⚠️  No reviewed tasks found in implementation log")
-            log("💡 Run 'ralph review' first to review tasks")
-            return 0
-        
-        log(f"✅ Found {len(reviewed_task_ids)} reviewed task IDs in log")
-        
-    except Exception as e:
-        log(f"❌ Failed to read implementation log: {e}")
-        return 1
-    
-    # Step 2: List tasks with status='done' from Vibe Kanban
-    log("🔍 Fetching done tasks...")
-    
-    model = config.get("vibe_kanban", {}).get("model", "claude-sonnet-4.5")
-    
-    list_prompt = f"""Use the vibe_kanban-list_tasks MCP tool to get all tasks with status='done' from project {project_id}.
-
-Return ONLY a JSON array of tasks with these fields:
-[
-  {{
-    "task_id": "uuid",
-    "title": "task title",
-    "description": "task description"
-  }},
-  ...
-]
-
-Output ONLY the JSON array, no markdown fences, no extra text."""
-    
-    try:
-        result = subprocess.run(
-            ["copilot", "--model", model, "--no-color", "--stream", "off", "-p", list_prompt],
-            capture_output=True,
-            text=True,
-            timeout=60,
-            check=True
-        )
-        response = result.stdout.strip()
-        
-        # Clean and parse JSON
-        import re
-        response_cleaned = re.sub(r'\x1b\[[0-9;]*m', '', response)
-        response_cleaned = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', response_cleaned)
-        
-        if "```json" in response_cleaned:
-            response_cleaned = response_cleaned.split("```json", 1)[1].split("```")[0]
-        elif "```" in response_cleaned:
-            response_cleaned = response_cleaned.split("```", 1)[1].split("```")[0]
-        
-        done_tasks = json.loads(response_cleaned.strip())
-        
-        if not done_tasks:
-            log("✅ No tasks to cleanup (no done tasks)")
-            return 0
-        
-        log(f"✅ Found {len(done_tasks)} done tasks")
-        
-    except Exception as e:
-        log(f"❌ Failed to fetch done tasks: {e}")
-        return 1
-    
-    # Step 3: Filter tasks with valid Ralph task IDs, only if reviewed
-    log("\n📦 Filtering reviewed tasks...")
-    
-    archived_tasks = []
-    skipped_tasks = []
-    task_id_pattern = re.compile(r'\b([A-Z]+-\d+)\b')
     archive_dir = Path(config.get("paths", {}).get("archive_dir", "plans/done"))
-    archive_dir.mkdir(parents=True, exist_ok=True)
     
-    for task in done_tasks:
-        title = task.get("title", "")
-        description = task.get("description", "")
-        
-        match = task_id_pattern.search(title + " " + description)
-        if match:
-            ralph_id = match.group(1)
-            
-            # Check if this task has been reviewed
-            if ralph_id not in reviewed_task_ids:
-                skipped_tasks.append({"id": ralph_id, "title": title, "reason": "Not reviewed yet"})
-                log(f"  ⏭️  {ralph_id}: Not reviewed yet (skipping)")
-                continue
-            
-            # Archive task data
-            archive_data = {
-                "id": ralph_id,
-                "title": title,
-                "description": description,
-                "kanban_id": task.get("task_id"),
-                "completed_at": now_iso(),
-                "archived_at": now_iso()
-            }
-            
-            archive_path = archive_dir / f"{ralph_id}.json"
-            try:
-                archive_path.write_text(
-                    json.dumps(archive_data, indent=2, ensure_ascii=False) + "\n",
-                    encoding="utf-8"
-                )
-                archived_tasks.append({"id": ralph_id, "title": title, "kanban_id": task.get("task_id")})
-                log(f"  ✅ {ralph_id}: {title}")
-            except Exception as e:
-                log(f"  ❌ Failed to archive {ralph_id}: {e}")
-    
-    if not archived_tasks:
-        if skipped_tasks:
-            log(f"\n⚠️  No reviewed tasks ready for cleanup")
-            log(f"💡 {len(skipped_tasks)} tasks not reviewed yet - run 'ralph review' first")
-        else:
-            log("⚠️  No Ralph tasks found to archive")
-        return 0
-    
-    log(f"\n✅ Archived {len(archived_tasks)} tasks to {archive_dir}/")
-    
-    # Step 3: Update tasks.json dependencies
-    log("\n🔗 Updating task dependencies...")
-    
-    tasks_path = Path(config.get("paths", {}).get("tasks", "plans/tasks.json"))
-    
-    if not tasks_path.exists():
-        log(f"⚠️  tasks.json not found: {tasks_path}")
-        log("   Skipping dependency update")
-    else:
-        try:
-            tasks_data = json.loads(tasks_path.read_text(encoding="utf-8"))
-            
-            completed_ids = {t["id"] for t in archived_tasks}
-            updated_tasks = []
-            
-            for task in tasks_data:
-                task_id = task.get("id")
-                dependencies = task.get("dependencies", [])
-                
-                if dependencies:
-                    # Remove completed task IDs from dependencies
-                    new_dependencies = [dep for dep in dependencies if dep not in completed_ids]
-                    
-                    if len(new_dependencies) < len(dependencies):
-                        removed = [dep for dep in dependencies if dep in completed_ids]
-                        task["dependencies"] = new_dependencies
-                        updated_tasks.append({"id": task_id, "removed": removed})
-                        log(f"  ✅ {task_id}: Removed {removed}")
-            
-            # Save updated tasks.json
-            tasks_path.write_text(
-                json.dumps(tasks_data, indent=2, ensure_ascii=False) + "\n",
-                encoding="utf-8"
-            )
-            
-            if updated_tasks:
-                log(f"\n✅ Updated {len(updated_tasks)} tasks in {tasks_path}")
-            else:
-                log("\n💡 No dependency updates needed")
-                
-        except Exception as e:
-            log(f"❌ Failed to update dependencies: {e}")
-            return 1
-    
-    # Step 4: Run cleanup-worktrees script
-    log("\n🔧 Running git worktree cleanup...")
-    
-    cleanup_script = Path("scripts/cleanup-worktrees.sh")
-    
-    if not cleanup_script.exists():
-        log(f"⚠️  Cleanup script not found: {cleanup_script}")
-        log("   Skipping worktree cleanup")
-        worktree_output = "Script not found"
-    else:
-        try:
-            result = subprocess.run(
-                ["bash", str(cleanup_script)],
-                capture_output=True,
-                text=True,
-                timeout=60
-            )
-            worktree_output = result.stdout.strip()
-            
-            if result.returncode == 0:
-                log(f"✅ Worktree cleanup completed")
-                if worktree_output:
-                    log(f"   {worktree_output}")
-            else:
-                log(f"⚠️  Worktree cleanup exited with code {result.returncode}")
-                log(f"   {result.stderr}")
-                
-        except Exception as e:
-            log(f"⚠️  Failed to run cleanup script: {e}")
-            worktree_output = f"Error: {e}"
-    
-    # Step 5: Delete tasks from Vibe Kanban
-    log("\n🗑️  Deleting tasks from Vibe Kanban...")
-    
-    deleted_tasks = []
-    failed_deletes = []
-    
-    for task in archived_tasks:
-        kanban_id = task["kanban_id"]
-        ralph_id = task["id"]
-        
-        delete_prompt = f"""Use the vibe_kanban-delete_task MCP tool to delete task {kanban_id} from Vibe Kanban.
+    prompt = f"""Archive reviewed tasks from vibe-kanban project "{project_name}".
 
-After deletion, return a JSON response:
-{{
-  "success": true,
-  "task_id": "{kanban_id}"
-}}
+Use @{skill_name} skill to:
+1. Use vibe_kanban-list_projects MCP to find project ID for "{project_name}"
+2. Read docs/implementation-log.md to get reviewed task IDs
+3. List tasks with status='done' from vibe-kanban
+4. Cross-reference: only archive tasks that are BOTH done AND reviewed
+5. For each matching task:
+   - Archive task data to {archive_dir}/
+6. Delete git worktrees and vk/* branches using: scripts/cleanup-worktrees.sh -f
+7. Delete reviewed tasks from vibe-kanban (only those in implementation-log.md)
+8. Append cleanup summary to docs/cleanup-log.md
 
-Or if failed:
-{{
-  "success": false,
-  "task_id": "{kanban_id}",
-  "error": "error message"
-}}"""
+Project name: {project_name}
+Implementation log: {log_path}
+Archive directory: {archive_dir}/
+Cleanup log: docs/cleanup-log.md
+
+Safety: Only archive/delete tasks that appear in implementation-log.md AND have 'done' status
+{'Non-interactive mode: Skip all confirmation prompts, auto-proceed with cleanup and archival.' if yolo_mode else ''}"""
+    
+    skill_config = config.get("skills", {}).get("cleanup_agent", {})
+    model = skill_config.get("model", "claude-haiku-4.5")
+    
+    if execute_mode:
+        # Execute immediately
+        mode_label = "🚀 YOLO MODE" if yolo_mode else "🧹"
+        log(f"{mode_label} Cleaning up reviewed tasks from project: {project_name}")
+        log(f"🤖 Using @{skill_name} skill")
         
-        try:
-            subprocess.run(
-                ["copilot", "--model", model, "--no-color", "--stream", "off", "-p", delete_prompt],
-                capture_output=True,
-                text=True,
-                timeout=30,
-                check=True
-            )
-            deleted_tasks.append(ralph_id)
-            log(f"  ✅ Deleted [{ralph_id}]")
-            
-        except Exception as e:
-            failed_deletes.append({"id": ralph_id, "error": str(e)})
-            log(f"  ⚠️  Failed to delete [{ralph_id}]: {e}")
+        response = invoke_copilot(skill_name, prompt, model=model, yolo=yolo_mode)
+        
+        log("\n✅ Cleanup complete!")
+    else:
+        # Show copy-paste prompt
+        context = {
+            "Command": "cleanup",
+            "Project": project_name,
+            "Skill": skill_name,
+            "Model": model,
+            "Archive": str(archive_dir)
+        }
+        print_prompt(skill_name, prompt, context)
     
-    # Step 6: Append to docs/cleanup-log.md
-    log("\n💾 Appending cleanup summary to log...")
-    
-    cleanup_log_path = Path(config.get("paths", {}).get("cleanup_log", "docs/cleanup-log.md"))
-    cleanup_log_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    # Build log entry
-    log_entry = f"\n## [{now_iso()}] Cleanup\n\n"
-    
-    log_entry += "### Tasks Archived\n"
-    for task in archived_tasks:
-        log_entry += f"- {task['id']}: {task['title']} → {archive_dir}/{task['id']}.json\n"
-    log_entry += f"Total: {len(archived_tasks)} tasks archived\n\n"
-    
-    if updated_tasks:
-        log_entry += "### Dependencies Updated\n"
-        for item in updated_tasks:
-            log_entry += f"- {item['id']}: Removed dependencies on {item['removed']}\n"
-        log_entry += f"Total: {len(updated_tasks)} tasks updated\n\n"
-    
-    log_entry += "### Git Worktrees\n"
-    log_entry += f"{worktree_output}\n\n"
-    
-    log_entry += "### Vibe Kanban\n"
-    log_entry += f"- Deleted {len(deleted_tasks)} completed tasks from project\n"
-    if failed_deletes:
-        log_entry += f"- Failed to delete {len(failed_deletes)} tasks\n"
-    log_entry += "\n"
-    
-    # Append to log
-    try:
-        with open(cleanup_log_path, "a", encoding="utf-8") as f:
-            f.write(log_entry)
-        log(f"✅ Appended to: {cleanup_log_path}")
-    except Exception as e:
-        log(f"❌ Failed to append to cleanup log: {e}")
-        return 1
-    
-    # Step 7: Report summary
-    log("\n" + "="*60)
-    log("📊 Cleanup Summary")
-    log("="*60)
-    log(f"📦 Archived: {len(archived_tasks)} tasks")
-    
-    if skipped_tasks:
-        log(f"⏭️  Skipped: {len(skipped_tasks)} tasks (not reviewed yet)")
-    
-    log(f"🔗 Updated: {len(updated_tasks) if updated_tasks else 0} tasks (dependencies)")
-    log(f"🔧 Worktrees: Cleaned")
-    log(f"🗑️  Deleted: {len(deleted_tasks)} tasks from Vibe Kanban")
-    
-    if failed_deletes:
-        log(f"\n⚠️  Failed to delete {len(failed_deletes)} tasks:")
-        for item in failed_deletes:
-            log(f"   • [{item['id']}] {item['error']}")
-    
-    log("\n✅ Cleanup complete!")
-    
-    return 0 if not failed_deletes else 1
+    return 0
 
 
 def main() -> int:
@@ -1293,22 +743,51 @@ def main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
+  # Show copy-paste prompts (default - solves permission issues!)
+  ralph tasks-kanban plans/tasks.json       # Shows prompt for Copilot
+  ralph run                                 # Shows prompt for running tasks
+  ralph review                              # Shows prompt for review
+  
+  # Execute immediately (requires MCP permissions already granted)
+  ralph --execute tasks-kanban plans/tasks.json
+  ralph --execute run
+  ralph --execute --yolo review             # Non-interactive + execute
+
+  # Document generation (no MCP needed)
   ralph brd-prd plans/brd.md                # Generate PRD from BRD
   ralph prd-tasks plans/prd.md              # Generate tasks from PRD
-  ralph tasks-kanban plans/tasks.json       # Create tasks in Vibe Kanban
-  ralph run                                 # Start tasks with no dependencies
-  ralph review plans/tasks.json             # Review completed tasks
-  ralph cleanup                             # Cleanup completed work
 
 Full workflow:
   1. ralph brd-prd plans/brd.md → generates plans/generated-prd.md
   2. ralph prd-tasks plans/generated-prd.md → generates plans/tasks.json
-  3. ralph tasks-kanban plans/tasks.json → creates tasks in Vibe Kanban
-  4. ralph run → starts tasks with no dependencies
-  5. (work on tasks in Vibe Kanban)
-  6. ralph review → reviews completed tasks
-  7. ralph cleanup → archives, adjusts dependencies, removes worktrees
+  3. ralph tasks-kanban plans/tasks.json → shows prompt to copy
+  4. (paste into: copilot, approve permissions)
+  5. ralph run → shows prompt to run ready tasks
+  6. (work on tasks in Vibe Kanban workspaces)
+  7. ralph review → shows prompt to review completed tasks
+  8. ralph cleanup → shows prompt to archive
+
+Prompt mode (default):
+  Shows formatted prompts to copy-paste into Copilot CLI.
+  Solves MCP permission issues by running in interactive mode.
+
+Execute mode (--execute):
+  Runs commands immediately. Requires MCP permissions already granted.
+  Use for automation/CI/CD after initial setup.
         """
+    )
+    
+    # Global flags
+    parser.add_argument(
+        "--yolo",
+        action="store_true",
+        help="Non-interactive mode: skip all confirmation prompts (auto-confirm everything)"
+    )
+    
+    parser.add_argument(
+        "--execute",
+        action="store_true",
+        help="Execute immediately (requires MCP permissions). Default: show copy-paste prompt"
     )
     
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
@@ -1358,8 +837,8 @@ Full workflow:
         help="Start tasks with no dependencies in Vibe Kanban"
     )
     run_parser.add_argument(
-        "--project-id",
-        help="Optional project ID (uses config if not provided)"
+        "--project-name",
+        help="Optional project name (uses config if not provided)"
     )
     
     # ralph review

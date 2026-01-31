@@ -15,9 +15,63 @@ Ralph transforms product development from requirements to implementation using:
 | Component | Purpose |
 |-----------|---------|
 | **Markdown PRDs** | Human-readable, LLM-parseable specifications |
-| **Skills** | Loaded by coding agent from project scope |
+| **Agentic Skills** | Loaded by coding agent from project scope |
 | **Vibe-Kanban integration** | Via prompt-based MCP protocol |
 | **Phase-contextual commands** | Clear workflow progression (brd-prd → prd-tasks → tasks-kanban → run) |
+| **Two-mode execution** | Prompt generator (default) + Execute mode (automation) |
+
+## 🔄 Two-Mode Architecture
+
+Ralph operates in two distinct modes to address different use cases:
+
+### Mode 1: Prompt Generator (Default)
+
+**Purpose:** Solves MCP permission issues by generating prompts for interactive Copilot
+
+**Flow:**
+```
+User → ralph.py → print_prompt() → Terminal
+                                      ↓
+User copies prompt                    
+                                      ↓
+User → copilot (interactive)
+                                      ↓
+Skills execute → MCP tools → Permissions granted naturally
+```
+
+**Benefits:**
+- ✅ No pre-setup permission headaches
+- ✅ Users see what will happen before running
+- ✅ Learning tool (shows skill usage)
+- ✅ Easy to share with team
+
+### Mode 2: Execute (--execute flag)
+
+**Purpose:** Direct automation for scripts and CI/CD
+
+**Flow:**
+```
+User → ralph.py --execute → invoke_copilot() → copilot subprocess
+                                                    ↓
+                                              Skills execute → MCP tools
+```
+
+**Requirements:**
+- ⚠️ MCP permissions already granted
+- ✅ For automation/scripts
+- ✅ Use with --yolo for non-interactive
+
+**Usage:**
+```bash
+# Prompt mode (default)
+./ralph.py tasks-kanban plans/tasks.json
+
+# Execute mode
+./ralph.py --execute tasks-kanban plans/tasks.json
+
+# Execute + YOLO (CI/CD)
+./ralph.py --execute --yolo run
+```
 
 ## Data Flow
 
@@ -91,7 +145,7 @@ BRD.md → brd-prd → PRD.md → prd-tasks → tasks.json → tasks-kanban → 
 | Property | Value |
 |----------|-------|
 | **Phase** | BRD → PRD |
-| **Skill** | `@brd-to-prd` |
+| **Skill** | `@ralph-brd-to-prd` |
 
 ```bash
 ralph brd-prd plans/my-brd.md
@@ -105,7 +159,7 @@ ralph brd-prd plans/my-brd.md
 | Property | Value |
 |----------|-------|
 | **Phase** | PRD → Tasks |
-| **Skill** | `@prd-to-tasks` |
+| **Skill** | `@ralph-prd-to-tasks` |
 
 ```bash
 ralph prd-tasks plans/generated-prd.md
@@ -165,7 +219,7 @@ ralph run
 | Aspect | Details |
 |--------|---------|
 | **Location** | `.copilot/skills/`, `.claude/skills/` |
-| **Reference** | By name: `@brd-to-prd` |
+| **Reference** | By name: `@ralph-brd-to-prd` |
 | **Agent** | Coding agent loads skills natively |
 | **Truth** | Source of truth: `skills/` folder |
 
@@ -173,10 +227,10 @@ ralph run
 
 | Skill | Description | Est. Size |
 |-------|-------------|-----------|
-| **@brd-to-prd** | BRD markdown → PRD markdown | ~100 lines |
+| **@ralph-brd-to-prd** | BRD markdown → PRD markdown | ~100 lines |
 | **@prd-tasks** | PRD markdown → tasks JSON | ~100 lines |
-| **@task-review** | Review completed tasks | future |
-| **@cleanup-agent** | Cleanup & archive | future |
+| **@ralph-task-review** | Review completed tasks | future |
+| **@ralph-cleanup-agent** | Cleanup & archive | future |
 
 ## 🔗 Vibe-Kanban Integration
 

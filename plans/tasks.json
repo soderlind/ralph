@@ -1,0 +1,718 @@
+[
+  {
+    "id": "TASK-001",
+    "category": "architecture",
+    "description": "Create test BRD file with sample SDLC workflow content",
+    "details": "Create a minimal but representative test-brd.md file in the plans/ directory  that contains a simple feature request suitable for testing the complete SDLC workflow  pipeline.",
+    "steps": [
+      "Step 1: Create plans/test-brd.md with basic structure (title, problem, solution,  requirements)",
+      "Step 2: Ensure content is simple enough to complete within 10-minute constraint",
+      "Step 3: Include all necessary sections for successful BRD-to-PRD transformation",
+      "Step 4: Verify file can be read by brd-to-prd skill"
+    ],
+    "acceptance": [
+      "Criterion 1: test-brd.md exists in plans/ directory",
+      "Criterion 2: File contains all required BRD sections",
+      "Criterion 3: Content is appropriate for quick end-to-end test",
+      "Criterion 4: brd-to-prd skill can successfully parse the file"
+    ],
+    "dependencies": [],
+    "priority": "high",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-002",
+    "category": "architecture",
+    "description": "Design test workflow command structure and entry point",
+    "details": "Define the command-line interface for the test workflow, including command name,   arguments (--project-name, --yolo), and integration points with Ralph's existing CLI  infrastructure.",
+    "steps": [
+      "Step 1: Determine command structure (e.g., 'ralph test' or 'ralph validate-workflow')",
+      "Step 2: Define required and optional arguments (project-name, yolo flag)",
+      "Step 3: Design output format specifications for both modes",
+      "Step 4: Document command interface and expected behavior"
+    ],
+    "acceptance": [
+      "Criterion 1: Command structure is documented",
+      "Criterion 2: Arguments are clearly defined with types and defaults",
+      "Criterion 3: Output format specifications exist for interactive and --yolo modes",
+      "Criterion 4: Integration approach with existing Ralph CLI is specified"
+    ],
+    "dependencies": [],
+    "priority": "high",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-003",
+    "category": "architecture",
+    "description": "Define project context and name resolution mechanism",
+    "details": "Establish how project_name is stored, resolved, and passed between workflow  phases to ensure all skills can access it without manual specification.",
+    "steps": [
+      "Step 1: Determine project context storage mechanism (config file, environment, session  state)",
+      "Step 2: Define resolution order (CLI arg > config > default)",
+      "Step 3: Specify interface for skills to access project_name",
+      "Step 4: Document project context lifecycle (creation, usage, cleanup)"
+    ],
+    "acceptance": [
+      "Criterion 1: Project context storage approach is defined",
+      "Criterion 2: Resolution logic is documented with priority order",
+      "Criterion 3: Interface for skills to access project_name exists",
+      "Criterion 4: Context lifecycle is clearly specified"
+    ],
+    "dependencies": [],
+    "priority": "high",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-004",
+    "category": "functional",
+    "description": "Implement test workflow command entry point",
+    "details": "Create the main command handler that orchestrates the complete test workflow,  supporting both interactive and --yolo execution modes.",
+    "steps": [
+      "Step 1: Create command handler function in Ralph CLI",
+      "Step 2: Implement argument parsing for --project-name and --yolo",
+      "Step 3: Add workflow orchestration logic to call phases in sequence",
+      "Step 4: Implement error handling and timeout enforcement (10 minutes)",
+      "Step 5: Add progress tracking and status reporting"
+    ],
+    "acceptance": [
+      "Criterion 1: Command executes when invoked from CLI",
+      "Criterion 2: Arguments are correctly parsed and validated",
+      "Criterion 3: Workflow phases execute in correct order",
+      "Criterion 4: Execution stops after 10 minutes with timeout error",
+      "Criterion 5: Errors are caught and reported clearly"
+    ],
+    "dependencies": [
+      "TASK-002",
+      "TASK-003"
+    ],
+    "priority": "high",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-005",
+    "category": "functional",
+    "description": "Implement BRD to PRD validation flow",
+    "details": "Create workflow phase that reads test-brd.md, invokes brd-to-prd skill,  validates output, and handles confirmation in interactive mode.",
+    "steps": [
+      "Step 1: Read test-brd.md from plans/ directory",
+      "Step 2: Invoke brd-to-prd skill with project context",
+      "Step 3: Validate generated PRD has required sections",
+      "Step 4: In interactive mode, prompt for confirmation; in --yolo mode, auto-proceed",
+      "Step 5: Store PRD path for next phase"
+    ],
+    "acceptance": [
+      "Criterion 1: test-brd.md is successfully read",
+      "Criterion 2: brd-to-prd skill executes without errors",
+      "Criterion 3: Generated PRD contains all required sections",
+      "Criterion 4: Interactive mode waits for user confirmation",
+      "Criterion 5: --yolo mode proceeds automatically"
+    ],
+    "dependencies": [
+      "TASK-001",
+      "TASK-004"
+    ],
+    "priority": "high",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-006",
+    "category": "functional",
+    "description": "Implement PRD to tasks validation flow",
+    "details": "Create workflow phase that reads generated PRD, invokes prd-to-tasks skill,  creates tasks in Vibe-Kanban, and validates task creation.",
+    "steps": [
+      "Step 1: Read generated PRD from previous phase",
+      "Step 2: Invoke prd-to-tasks skill with project context",
+      "Step 3: Parse generated task JSON array",
+      "Step 4: Create tasks in Vibe-Kanban via API with proper dependencies",
+      "Step 5: Validate all tasks were created and display task list"
+    ],
+    "acceptance": [
+      "Criterion 1: PRD is successfully read and parsed",
+      "Criterion 2: prd-to-tasks skill generates valid JSON task array",
+      "Criterion 3: All tasks are created in Vibe-Kanban",
+      "Criterion 4: Task dependencies are correctly set",
+      "Criterion 5: Task list is displayed to user"
+    ],
+    "dependencies": [
+      "TASK-005"
+    ],
+    "priority": "high",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-007",
+    "category": "functional",
+    "description": "Implement task execution validation with dependency ordering",
+    "details": "Create workflow phase that retrieves tasks from Vibe-Kanban, executes them in  dependency order, and tracks execution status.",
+    "steps": [
+      "Step 1: Retrieve tasks from Vibe-Kanban for the project",
+      "Step 2: Build dependency graph and determine execution order",
+      "Step 3: Execute tasks sequentially respecting dependencies",
+      "Step 4: Update task status in Vibe-Kanban as tasks complete",
+      "Step 5: Handle task failures and report status"
+    ],
+    "acceptance": [
+      "Criterion 1: Tasks are retrieved from Vibe-Kanban",
+      "Criterion 2: Execution order respects all dependencies",
+      "Criterion 3: Tasks execute without dependency violations",
+      "Criterion 4: Task status is updated in real-time",
+      "Criterion 5: Failures are detected and workflow pauses (interactive) or aborts (--yolo)"
+    ],
+    "dependencies": [
+      "TASK-006"
+    ],
+    "priority": "high",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-008",
+    "category": "functional",
+    "description": "Implement implementation review log generation",
+    "details": "Create workflow phase that analyzes completed tasks, generates a comprehensive  review document, and saves it to the docs/ directory.",
+    "steps": [
+      "Step 1: Retrieve all completed tasks from Vibe-Kanban",
+      "Step 2: Gather execution logs and results for each task",
+      "Step 3: Generate markdown review document with implementation details",
+      "Step 4: Include verification results and any issues encountered",
+      "Step 5: Save review log to docs/ directory with timestamp"
+    ],
+    "acceptance": [
+      "Criterion 1: Review document is generated after task execution",
+      "Criterion 2: Document includes all completed tasks with details",
+      "Criterion 3: Verification results are included",
+      "Criterion 4: File is saved to docs/ directory",
+      "Criterion 5: Document is human-readable markdown format"
+    ],
+    "dependencies": [
+      "TASK-007"
+    ],
+    "priority": "medium",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-009",
+    "category": "functional",
+    "description": "Implement cleanup and archival workflow phase",
+    "details": "Create workflow phase that archives completed tasks, preserves artifacts, and  cleans up the workspace after successful completion.",
+    "steps": [
+      "Step 1: Archive completed tasks in Vibe-Kanban (change status to archived)",
+      "Step 2: Create timestamped archive directory in archive/",
+      "Step 3: Copy all generated artifacts (PRD, tasks, review log) to archive",
+      "Step 4: Clean up temporary files and session state",
+      "Step 5: Generate completion summary with metrics"
+    ],
+    "acceptance": [
+      "Criterion 1: Tasks are archived in Vibe-Kanban",
+      "Criterion 2: Archive directory is created with proper timestamp",
+      "Criterion 3: All artifacts are preserved in archive/",
+      "Criterion 4: Temporary files are removed",
+      "Criterion 5: Completion summary shows success metrics"
+    ],
+    "dependencies": [
+      "TASK-008"
+    ],
+    "priority": "medium",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-010",
+    "category": "functional",
+    "description": "Implement project name resolution across all workflow phases",
+    "details": "Ensure project_name is correctly resolved from CLI args, config, or defaults,  and is accessible to all skills and workflow phases without manual specification.",
+    "steps": [
+      "Step 1: Implement project_name resolution logic with priority order",
+      "Step 2: Store resolved project_name in workflow context",
+      "Step 3: Pass project_name to all skill invocations",
+      "Step 4: Verify Vibe-Kanban operations use correct project",
+      "Step 5: Add validation that project_name is never undefined"
+    ],
+    "acceptance": [
+      "Criterion 1: project_name is resolved according to priority order",
+      "Criterion 2: All skill invocations receive project_name",
+      "Criterion 3: Vibe-Kanban operations target correct project",
+      "Criterion 4: No phase requires manual project specification",
+      "Criterion 5: Validation prevents undefined project_name"
+    ],
+    "dependencies": [
+      "TASK-003",
+      "TASK-004"
+    ],
+    "priority": "high",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-011",
+    "category": "functional",
+    "description": "Implement interactive mode with user prompts and confirmations",
+    "details": "Add interactive prompts for workflow phases, allowing users to review outputs  before proceeding, and provide clear status updates.",
+    "steps": [
+      "Step 1: Add confirmation prompt after PRD generation",
+      "Step 2: Add confirmation prompt before task execution",
+      "Step 3: Display progress indicators for each phase",
+      "Step 4: Implement pause-on-failure behavior with user options",
+      "Step 5: Add final summary display with completion metrics"
+    ],
+    "acceptance": [
+      "Criterion 1: User is prompted for confirmation at key phases",
+      "Criterion 2: Progress indicators show current phase and status",
+      "Criterion 3: On failure, user can choose to abort or continue",
+      "Criterion 4: Final summary displays all metrics clearly",
+      "Criterion 5: User experience is clear and intuitive"
+    ],
+    "dependencies": [
+      "TASK-004"
+    ],
+    "priority": "high",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-012",
+    "category": "functional",
+    "description": "Implement --yolo automated mode with no user interaction",
+    "details": "Add fully automated execution mode that proceeds through all phases without  prompts, suitable for CI/CD pipelines.",
+    "steps": [
+      "Step 1: Detect --yolo flag from command arguments",
+      "Step 2: Skip all confirmation prompts automatically",
+      "Step 3: Implement automatic failure abort with non-zero exit code",
+      "Step 4: Generate structured output report (JSON or text)",
+      "Step 5: Log all operations for debugging purposes"
+    ],
+    "acceptance": [
+      "Criterion 1: --yolo flag is correctly detected",
+      "Criterion 2: No prompts or user interaction occurs",
+      "Criterion 3: Failures result in immediate abort with exit code 1",
+      "Criterion 4: Structured report is generated",
+      "Criterion 5: All operations are logged"
+    ],
+    "dependencies": [
+      "TASK-004"
+    ],
+    "priority": "high",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-013",
+    "category": "functional",
+    "description": "Implement timeout enforcement and time tracking",
+    "details": "Add logic to track execution time and abort workflow if it exceeds 10-minute  constraint, with clear timeout error messages.",
+    "steps": [
+      "Step 1: Start timer when workflow begins",
+      "Step 2: Check elapsed time before each phase",
+      "Step 3: Abort workflow if timeout exceeded",
+      "Step 4: Display clear timeout error with diagnostic info",
+      "Step 5: Include execution time in completion summary"
+    ],
+    "acceptance": [
+      "Criterion 1: Timer starts at workflow initiation",
+      "Criterion 2: Timeout is checked before each phase",
+      "Criterion 3: Workflow aborts after 10 minutes",
+      "Criterion 4: Timeout error message is clear and actionable",
+      "Criterion 5: Execution time is reported in summary"
+    ],
+    "dependencies": [
+      "TASK-004"
+    ],
+    "priority": "medium",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-014",
+    "category": "functional",
+    "description": "Implement error handling and recovery guidance",
+    "details": "Add comprehensive error handling throughout workflow with clear error messages  and actionable guidance for common failures.",
+    "steps": [
+      "Step 1: Wrap each workflow phase in try-catch blocks",
+      "Step 2: Detect common failure scenarios (Vibe-Kanban unavailable, skill errors, etc.)",
+      "Step 3: Generate clear error messages with context",
+      "Step 4: Provide actionable guidance for each error type",
+      "Step 5: Log errors for debugging"
+    ],
+    "acceptance": [
+      "Criterion 1: All phases have error handling",
+      "Criterion 2: Common failures are detected specifically",
+      "Criterion 3: Error messages include context and cause",
+      "Criterion 4: Guidance suggests concrete next steps",
+      "Criterion 5: Errors are logged with full details"
+    ],
+    "dependencies": [
+      "TASK-004"
+    ],
+    "priority": "medium",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-015",
+    "category": "testing",
+    "description": "Test BRD to PRD transformation end-to-end",
+    "details": "Verify that test-brd.md is correctly transformed into a valid PRD with all  required sections, using both interactive and --yolo modes.",
+    "steps": [
+      "Step 1: Execute BRD to PRD phase in interactive mode",
+      "Step 2: Verify PRD is generated with correct structure",
+      "Step 3: Validate all required sections are present",
+      "Step 4: Execute BRD to PRD phase in --yolo mode",
+      "Step 5: Confirm both modes produce equivalent output"
+    ],
+    "acceptance": [
+      "Criterion 1: PRD is generated successfully in both modes",
+      "Criterion 2: All required sections exist in generated PRD",
+      "Criterion 3: PRD content is properly formatted markdown",
+      "Criterion 4: Project name is correctly resolved",
+      "Criterion 5: No errors occur during transformation"
+    ],
+    "dependencies": [
+      "TASK-001",
+      "TASK-005",
+      "TASK-010",
+      "TASK-011",
+      "TASK-012"
+    ],
+    "priority": "high",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-016",
+    "category": "testing",
+    "description": "Test PRD to tasks conversion and Vibe-Kanban integration",
+    "details": "Verify that generated PRD is correctly broken down into tasks and tasks are  created in Vibe-Kanban with proper dependencies.",
+    "steps": [
+      "Step 1: Execute PRD to tasks phase with generated PRD",
+      "Step 2: Verify tasks JSON is generated with correct structure",
+      "Step 3: Confirm tasks are created in Vibe-Kanban",
+      "Step 4: Validate task dependencies are correctly set",
+      "Step 5: Check all task metadata (category, priority, status)"
+    ],
+    "acceptance": [
+      "Criterion 1: Tasks JSON is generated successfully",
+      "Criterion 2: All tasks appear in Vibe-Kanban",
+      "Criterion 3: Dependencies are correctly represented",
+      "Criterion 4: Task metadata matches specification",
+      "Criterion 5: Task count is reasonable for test feature"
+    ],
+    "dependencies": [
+      "TASK-006",
+      "TASK-010",
+      "TASK-015"
+    ],
+    "priority": "high",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-017",
+    "category": "testing",
+    "description": "Test task execution with dependency ordering",
+    "details": "Verify that tasks execute in correct dependency order without violations, and  task status is properly updated in Vibe-Kanban.",
+    "steps": [
+      "Step 1: Execute task execution phase with created tasks",
+      "Step 2: Monitor execution order and verify dependencies are respected",
+      "Step 3: Confirm task status updates in Vibe-Kanban",
+      "Step 4: Verify no dependency violations occur",
+      "Step 5: Check that all tasks complete successfully"
+    ],
+    "acceptance": [
+      "Criterion 1: Tasks execute in dependency order",
+      "Criterion 2: No task runs before its dependencies complete",
+      "Criterion 3: Task status is updated in real-time",
+      "Criterion 4: All tasks reach 'completed' status",
+      "Criterion 5: Execution logs are generated correctly"
+    ],
+    "dependencies": [
+      "TASK-007",
+      "TASK-016"
+    ],
+    "priority": "high",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-018",
+    "category": "testing",
+    "description": "Test implementation review generation",
+    "details": "Verify that implementation review document is generated with comprehensive  details about completed tasks and verification results.",
+    "steps": [
+      "Step 1: Execute implementation review phase after task completion",
+      "Step 2: Verify review document is created in docs/",
+      "Step 3: Check document contains all completed tasks",
+      "Step 4: Validate verification results are included",
+      "Step 5: Confirm document is readable markdown format"
+    ],
+    "acceptance": [
+      "Criterion 1: Review document is generated",
+      "Criterion 2: File is saved to docs/ directory",
+      "Criterion 3: All completed tasks are documented",
+      "Criterion 4: Verification results are clear and detailed",
+      "Criterion 5: Document format is valid markdown"
+    ],
+    "dependencies": [
+      "TASK-008",
+      "TASK-017"
+    ],
+    "priority": "medium",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-019",
+    "category": "testing",
+    "description": "Test cleanup and archival process",
+    "details": "Verify that cleanup phase properly archives tasks, preserves artifacts, and  cleans workspace without data loss.",
+    "steps": [
+      "Step 1: Execute cleanup phase after workflow completion",
+      "Step 2: Verify tasks are archived in Vibe-Kanban",
+      "Step 3: Confirm archive directory is created with artifacts",
+      "Step 4: Check all artifacts are preserved (PRD, tasks, review)",
+      "Step 5: Validate temporary files are removed"
+    ],
+    "acceptance": [
+      "Criterion 1: Tasks status changes to archived",
+      "Criterion 2: Archive directory exists with timestamp",
+      "Criterion 3: All artifacts are copied to archive",
+      "Criterion 4: No data loss occurs",
+      "Criterion 5: Workspace is clean after cleanup"
+    ],
+    "dependencies": [
+      "TASK-009",
+      "TASK-018"
+    ],
+    "priority": "medium",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-020",
+    "category": "testing",
+    "description": "Test project name resolution across all skills",
+    "details": "Verify that project_name is correctly resolved and used by all skills and  workflow phases without manual specification.",
+    "steps": [
+      "Step 1: Test with explicit --project-name argument",
+      "Step 2: Test with project name in config file",
+      "Step 3: Test with default project name",
+      "Step 4: Verify each skill receives correct project_name",
+      "Step 5: Confirm Vibe-Kanban operations target correct project"
+    ],
+    "acceptance": [
+      "Criterion 1: CLI argument takes priority",
+      "Criterion 2: Config file is used when no CLI arg",
+      "Criterion 3: Default is used when neither exists",
+      "Criterion 4: All skills receive project_name correctly",
+      "Criterion 5: No manual specification is required"
+    ],
+    "dependencies": [
+      "TASK-010",
+      "TASK-015",
+      "TASK-016"
+    ],
+    "priority": "high",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-021",
+    "category": "testing",
+    "description": "Test interactive mode user experience",
+    "details": "Verify that interactive mode provides clear prompts, progress indicators, and  allows user control at key decision points.",
+    "steps": [
+      "Step 1: Execute complete workflow in interactive mode",
+      "Step 2: Verify prompts appear at correct phases",
+      "Step 3: Test user confirmation flow (approve/reject)",
+      "Step 4: Validate progress indicators display correctly",
+      "Step 5: Confirm final summary is displayed"
+    ],
+    "acceptance": [
+      "Criterion 1: Prompts appear after PRD generation and before execution",
+      "Criterion 2: User can approve or reject at each prompt",
+      "Criterion 3: Progress indicators show current phase",
+      "Criterion 4: Final summary displays all metrics",
+      "Criterion 5: User experience is intuitive and clear"
+    ],
+    "dependencies": [
+      "TASK-011",
+      "TASK-015",
+      "TASK-016",
+      "TASK-017"
+    ],
+    "priority": "high",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-022",
+    "category": "testing",
+    "description": "Test --yolo automated mode",
+    "details": "Verify that --yolo mode executes entire workflow without user interaction and is   suitable for CI/CD pipelines.",
+    "steps": [
+      "Step 1: Execute complete workflow with --yolo flag",
+      "Step 2: Verify no prompts or user interaction occurs",
+      "Step 3: Confirm workflow completes automatically",
+      "Step 4: Test failure scenario returns non-zero exit code",
+      "Step 5: Validate structured report is generated"
+    ],
+    "acceptance": [
+      "Criterion 1: No prompts appear during execution",
+      "Criterion 2: Workflow completes without user input",
+      "Criterion 3: Success returns exit code 0",
+      "Criterion 4: Failure returns exit code 1",
+      "Criterion 5: Report contains all necessary information"
+    ],
+    "dependencies": [
+      "TASK-012",
+      "TASK-015",
+      "TASK-016",
+      "TASK-017"
+    ],
+    "priority": "high",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-023",
+    "category": "testing",
+    "description": "Test timeout enforcement and time tracking",
+    "details": "Verify that workflow aborts after 10 minutes and execution time is accurately  tracked and reported.",
+    "steps": [
+      "Step 1: Execute workflow with simulated delay",
+      "Step 2: Verify workflow aborts at 10-minute mark",
+      "Step 3: Check timeout error message is clear",
+      "Step 4: Test normal execution includes time tracking",
+      "Step 5: Confirm execution time in completion summary"
+    ],
+    "acceptance": [
+      "Criterion 1: Workflow aborts after 10 minutes",
+      "Criterion 2: Timeout error is clear and actionable",
+      "Criterion 3: Execution time is tracked accurately",
+      "Criterion 4: Time is displayed in completion summary",
+      "Criterion 5: No false timeout triggers for normal execution"
+    ],
+    "dependencies": [
+      "TASK-013"
+    ],
+    "priority": "medium",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-024",
+    "category": "testing",
+    "description": "Test error handling and recovery guidance",
+    "details": "Verify that common error scenarios are handled gracefully with clear messages  and actionable guidance.",
+    "steps": [
+      "Step 1: Test Vibe-Kanban unavailable scenario",
+      "Step 2: Test invalid BRD file scenario",
+      "Step 3: Test skill execution failure scenario",
+      "Step 4: Verify error messages are clear with context",
+      "Step 5: Confirm recovery guidance is actionable"
+    ],
+    "acceptance": [
+      "Criterion 1: Vibe-Kanban errors show connection guidance",
+      "Criterion 2: Invalid file errors show format requirements",
+      "Criterion 3: Skill failures show diagnostic information",
+      "Criterion 4: All errors include clear context",
+      "Criterion 5: Guidance suggests concrete next steps"
+    ],
+    "dependencies": [
+      "TASK-014"
+    ],
+    "priority": "medium",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-025",
+    "category": "testing",
+    "description": "End-to-end integration test of complete workflow",
+    "details": "Execute complete SDLC workflow from BRD to cleanup in both interactive and  --yolo modes, verifying all acceptance criteria.",
+    "steps": [
+      "Step 1: Run complete workflow in interactive mode",
+      "Step 2: Verify all acceptance criteria (AC-001 through AC-008)",
+      "Step 3: Check execution time is under 10 minutes",
+      "Step 4: Run complete workflow in --yolo mode",
+      "Step 5: Confirm both modes complete successfully with identical outcomes"
+    ],
+    "acceptance": [
+      "Criterion 1: All workflow phases complete without errors",
+      "Criterion 2: All 8 acceptance criteria are met",
+      "Criterion 3: Execution time is under 10 minutes",
+      "Criterion 4: Both modes produce equivalent results",
+      "Criterion 5: All artifacts are correctly generated and archived"
+    ],
+    "dependencies": [
+      "TASK-015",
+      "TASK-016",
+      "TASK-017",
+      "TASK-018",
+      "TASK-019",
+      "TASK-020",
+      "TASK-021",
+      "TASK-022"
+    ],
+    "priority": "high",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-026",
+    "category": "documentation",
+    "description": "Document test workflow usage and command reference",
+    "details": "Create comprehensive documentation for the test workflow command, including  usage examples, arguments, and expected behavior.",
+    "steps": [
+      "Step 1: Document command syntax and all arguments",
+      "Step 2: Provide usage examples for both interactive and --yolo modes",
+      "Step 3: Explain workflow phases and what each does",
+      "Step 4: Document expected outputs and artifacts",
+      "Step 5: Add to Ralph's main documentation"
+    ],
+    "acceptance": [
+      "Criterion 1: Command syntax is clearly documented",
+      "Criterion 2: Usage examples cover common scenarios",
+      "Criterion 3: All workflow phases are explained",
+      "Criterion 4: Expected outputs are documented",
+      "Criterion 5: Documentation is integrated into Ralph docs"
+    ],
+    "dependencies": [
+      "TASK-025"
+    ],
+    "priority": "medium",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-027",
+    "category": "documentation",
+    "description": "Document expected outputs and artifact formats",
+    "details": "Create documentation describing all generated artifacts (PRD, tasks, review log,   archive) with format specifications and examples.",
+    "steps": [
+      "Step 1: Document PRD format and required sections",
+      "Step 2: Document tasks JSON schema and structure",
+      "Step 3: Document review log format and contents",
+      "Step 4: Document archive structure and organization",
+      "Step 5: Provide example outputs for each artifact"
+    ],
+    "acceptance": [
+      "Criterion 1: All artifact formats are documented",
+      "Criterion 2: Schema/structure specifications are clear",
+      "Criterion 3: Example outputs are provided",
+      "Criterion 4: Documentation explains artifact purpose",
+      "Criterion 5: Format requirements are testable"
+    ],
+    "dependencies": [
+      "TASK-025"
+    ],
+    "priority": "low",
+    "status": "todo"
+  },
+  {
+    "id": "TASK-028",
+    "category": "documentation",
+    "description": "Create troubleshooting guide for common issues",
+    "details": "Document common failure scenarios, their causes, and step-by-step resolution  procedures.",
+    "steps": [
+      "Step 1: List common error scenarios from testing",
+      "Step 2: Document root causes for each scenario",
+      "Step 3: Provide step-by-step resolution procedures",
+      "Step 4: Add debugging tips and diagnostic commands",
+      "Step 5: Include FAQ section with quick answers"
+    ],
+    "acceptance": [
+      "Criterion 1: Common errors are documented with examples",
+      "Criterion 2: Root causes are clearly explained",
+      "Criterion 3: Resolution procedures are step-by-step",
+      "Criterion 4: Debugging tips are actionable",
+      "Criterion 5: FAQ covers most common questions"
+    ],
+    "dependencies": [
+      "TASK-024",
+      "TASK-025"
+    ],
+    "priority": "low",
+    "status": "todo"
+  }
+]

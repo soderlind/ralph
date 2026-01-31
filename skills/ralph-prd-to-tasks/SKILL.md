@@ -1,5 +1,5 @@
 ---
-name: prd-to-tasks  
+name: ralph-prd-to-tasks
 description: "Break down markdown PRDs into atomic, actionable tasks with dependencies"
 ---
 

@@ -2,10 +2,10 @@
   "project_name": "ralph-sdlc-wrapper",
   "version": "0.1.0",
   "vibe_kanban": {
-    "project_name": null,
-    "executor": "CLAUDE_CODE",
+    "project_name": "ralph-copilot",
+    "executor": "COPILOT",
     "variant": null,
-    "model": "claude-sonnet-4.5",
+    "model": "claude-haiku-4.5",
     "repo_config": {
       "base_branch": "main",
       "setup_script": "",

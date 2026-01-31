@@ -53,19 +53,30 @@ The tasks generated in Phase 2.
 
 ### 🔨 Command: Create Tasks in Vibe Kanban
 
+**Prompt Mode (Default - Recommended):**
 ```bash
+# Generate prompt
 ralph tasks-kanban plans/tasks.json
+
+# Copy the output, then:
+copilot
+> [paste @ralph-tasks-kanban prompt]
+> y  # Approve permissions
+```
+
+**Execute Mode (After permissions granted):**
+```bash
+ralph --execute tasks-kanban plans/tasks.json
 ```
 
 #### ⚙️ What happens:
 
-1. Checks/installs vibe-kanban
-2. Fetches available projects (or uses configured project_id)
-3. Interactive project selection if needed
-4. Coding agent creates all tasks via `vibe_kanban-create_task` MCP
-5. Updates tasks.json with `kanban_id` for each task
+1. Resolves project name to ID via `vibe_kanban-list_projects`
+2. Reads and validates tasks.json
+3. Creates all tasks via `vibe_kanban-create_task` MCP
+4. Reports results
 
-**Output**: Tasks created in Vibe Kanban, tasks.json updated
+**Output**: Tasks created in Vibe Kanban
 
 ---
 
@@ -73,16 +84,33 @@ ralph tasks-kanban plans/tasks.json
 
 ### 🔨 Command: Start Tasks
 
+**Prompt Mode (Default):**
 ```bash
+# Generate prompt
 ralph run
+
+# Copy and paste into:
+copilot
+> [paste @ralph-run prompt]
+```
+
+**Execute Mode:**
+```bash
+ralph --execute run
+```
+
+**YOLO Mode (Non-interactive):**
+```bash
+ralph --execute --yolo run
 ```
 
 #### ⚙️ What happens:
 
-1. Fetches all tasks from Vibe Kanban (live status)
-2. Filters for `status='todo'` with no dependencies
-3. Starts workspace sessions using `vibe_kanban-start_workspace_session` MCP
-4. Reports started/failed sessions
+1. Resolves project name to ID
+2. Fetches all tasks from Vibe Kanban (live status)
+3. Filters for `status='todo'` with no dependencies
+4. Starts workspace sessions using `vibe_kanban-start_workspace_session` MCP
+5. Reports started/failed sessions
 
 > **📌 Note**: Always reads from Vibe Kanban (not tasks.json) — living status is in Vibe Kanban.
 
@@ -94,14 +122,25 @@ ralph run
 
 ### 🔨 Command: Review Tasks
 
+**Prompt Mode (Default):**
 ```bash
-ralph review plans/tasks.json
+# Generate prompt
+ralph review
+
+# Copy and paste into:
+copilot
+> [paste @ralph-task-review prompt]
+```
+
+**Execute Mode:**
+```bash
+ralph --execute review
 ```
 
 #### ⚙️ What happens:
 
 1. Filters tasks with `status='done'`
-2. Invokes `@task-review` skill for each
+2. Invokes `@ralph-task-review` skill for each
 3. **Appends** to `docs/implementation-log.md`
 
 ---
@@ -110,20 +149,84 @@ ralph review plans/tasks.json
 
 ### 🔨 Command: Cleanup Completed Tasks
 
+**Prompt Mode (Default):**
 ```bash
+# Generate prompt
 ralph cleanup
+
+# Copy and paste into:
+copilot
+> [paste @ralph-cleanup-agent prompt]
+```
+
+**Execute Mode:**
+```bash
+ralph --execute cleanup
 ```
 
 #### ⚙️ What happens:
 
-1. Archives completed tasks to `plans/done/`
-2. **Removes dependencies** on completed tasks
-3. **Appends** to `docs/cleanup-log.md`
-4. Runs `scripts/cleanup-worktrees.sh`
+1. Resolves project name to ID
+2. Cross-references reviewed tasks with done tasks
+3. Archives completed tasks to `plans/done/`
+4. **Removes dependencies** on completed tasks in tasks.json
+5. **Appends** to `docs/cleanup-log.md`
+6. Runs `scripts/cleanup-worktrees.sh`
 
 ---
 
 ## 📚 Complete Example
+
+### First-Time Workflow (Prompt Mode)
+
+```bash
+# ────────────────────────────────────────────────────────
+# 1️⃣  Generate PRD from BRD (No MCP needed)
+# ────────────────────────────────────────────────────────
+ralph brd-prd plans/my-product-brd.md
+# Output: plans/generated-prd.md
+
+# ────────────────────────────────────────────────────────
+# 2️⃣  Generate tasks from PRD (No MCP needed)
+# ────────────────────────────────────────────────────────
+ralph prd-tasks plans/generated-prd.md
+# Output: plans/tasks.json
+
+# ────────────────────────────────────────────────────────
+# 3️⃣  Create tasks in Vibe Kanban (Prompt mode!)
+# ────────────────────────────────────────────────────────
+ralph tasks-kanban plans/tasks.json
+# Copy the prompt, then:
+copilot
+> [paste prompt]
+> y  # Approve vibe_kanban permissions
+
+# ────────────────────────────────────────────────────────
+# 4️⃣  Start ready tasks (Prompt mode!)
+# ────────────────────────────────────────────────────────
+ralph run
+# Copy the prompt, then:
+copilot
+> [paste prompt]
+
+# ────────────────────────────────────────────────────────
+# 5️⃣  Review completed work (Prompt mode!)
+# ────────────────────────────────────────────────────────
+ralph review
+# Copy the prompt, then:
+copilot
+> [paste prompt]
+
+# ────────────────────────────────────────────────────────
+# 6️⃣  Cleanup (Prompt mode!)
+# ────────────────────────────────────────────────────────
+ralph cleanup
+# Copy the prompt, then:
+copilot
+> [paste prompt]
+```
+
+### Automation Workflow (Execute Mode - After Permissions Granted)
 
 ```bash
 # ────────────────────────────────────────────────────────
@@ -139,15 +242,15 @@ ralph prd-tasks plans/generated-prd.md
 # Output: plans/tasks.json
 
 # ────────────────────────────────────────────────────────
-# 3️⃣  Create tasks in Vibe Kanban
+# 3️⃣  Create tasks in Vibe Kanban (Execute mode!)
 # ────────────────────────────────────────────────────────
-ralph tasks-kanban plans/tasks.json
-# Output: Tasks created, kanban_ids added
+ralph --execute tasks-kanban plans/tasks.json
+# Output: Tasks created
 
 # ────────────────────────────────────────────────────────
-# 4️⃣  Start tasks with no dependencies
+# 4️⃣  Start tasks with no dependencies (Execute mode!)
 # ────────────────────────────────────────────────────────
-ralph run
+ralph --execute run
 # Output: Workspace sessions started
 
 # ────────────────────────────────────────────────────────
@@ -156,21 +259,21 @@ ralph run
 # (tasks automatically update status)
 
 # ────────────────────────────────────────────────────────
-# 6️⃣  Start next batch when ready
+# 6️⃣  Start next batch when ready (Execute mode!)
 # ────────────────────────────────────────────────────────
-ralph run
+ralph --execute run
 # Output: Starts newly-ready tasks
 
 # ────────────────────────────────────────────────────────
-# 7️⃣  Review completed tasks (optional)
+# 7️⃣  Review completed tasks (Execute mode!)
 # ────────────────────────────────────────────────────────
-ralph review plans/tasks.json
+ralph --execute review
 # Output: docs/implementation-log.md (appended)
 
 # ────────────────────────────────────────────────────────
-# 8️⃣  Cleanup completed work (optional)
+# 8️⃣  Cleanup completed work (Execute mode!)
 # ────────────────────────────────────────────────────────
-ralph cleanup
+ralph --execute cleanup
 # Output: Archived, dependencies adjusted
 ```
 
@@ -183,8 +286,8 @@ ralph cleanup
 | Setting | Value |
 |---------|-------|
 | **Executor** | `CLAUDE_CODE` |
-| **Model** | `claude-sonnet-4.5` |
-| **Project ID** | `your-project-uuid-here` |
+| **Model** | `claude-haiku-4.5` |
+| **Project Name** | `ralph-copilot` (human-readable!) |
 | **Setup Script** | `npm install` |
 | **Dev Server** | `npm run dev` |
 | **Cleanup Script** | `git worktree prune` |
@@ -193,8 +296,8 @@ ralph cleanup
 {
   "vibe_kanban": {
     "executor": "CLAUDE_CODE",
-    "model": "claude-sonnet-4.5",
-    "project_id": "your-project-uuid-here",
+    "model": "claude-haiku-4.5",
+    "project_name": "ralph-copilot",  // Changed from project_id!
     "repo_config": {
       "setup_script": "npm install",
       "dev_server_script": "npm run dev",
@@ -217,10 +320,10 @@ ralph cleanup
 
 | Skill | Purpose |
 |-------|---------|
-| **@brd-to-prd** | BRD → PRD markdown |
-| **@prd-to-tasks** | PRD → tasks JSON |
-| **@task-review** | Review completed tasks (append mode) |
-| **@cleanup-agent** | Cleanup & archive (append mode) |
+| **@ralph-brd-to-prd** | BRD → PRD markdown |
+| **@ralph-prd-to-tasks** | PRD → tasks JSON |
+| **@ralph-task-review** | Review completed tasks (append mode) |
+| **@ralph-cleanup-agent** | Cleanup & archive (append mode) |
 
 ---
 

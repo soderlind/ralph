@@ -1,5 +1,5 @@
 ---
-name: brd-to-prd
+name: ralph-brd-to-prd
 description: "Transform Business Requirements Documents (BRDs) into Product Requirements Documents (PRDs) in structured markdown format"
 ---
 

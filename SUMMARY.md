@@ -1,17 +1,42 @@
 # Ralph SDLC Wrapper - Implementation Summary
 
-**Date**: 2026-01-31  
-**Status**: All 6 Commands Implemented ✅ | Testing Next 🧪
+**Date**: 2025-01-31  
+**Status**: Prompt Generator Mode Implemented ✅ | Ready for Testing 🧪
 
 ---
 
 ## Overview
 
-Ralph has been completely reimagined as an SDLC wrapper that integrates with Vibe-Kanban to orchestrate the full product development lifecycle:
+Ralph is an SDLC orchestrator that integrates with Vibe-Kanban for the full product development lifecycle:
 
 **BRD → PRD (Markdown) → Tasks → Vibe Kanban → Execute → Review → Cleanup**
 
-This is NOT a minor update - it's a complete architectural overhaul with **zero backward compatibility**.
+## Latest Update: Prompt Generator Mode 🎉
+
+**NEW:** Ralph now generates copy-paste ready prompts by default, solving the MCP permission problem!
+
+### Two Modes
+
+1. **Prompt Mode (Default)** - Shows formatted prompts to paste into Copilot
+   - ✅ Solves permission issues naturally
+   - ✅ Great for learning and debugging
+   - ✅ Easy to share with team
+
+2. **Execute Mode (--execute)** - Runs immediately
+   - ✅ For automation/CI/CD
+   - ✅ After permissions granted
+   - ✅ Use with --yolo for non-interactive
+
+### Example
+
+```bash
+# Default: Shows prompt
+./ralph.py tasks-kanban plans/tasks.json
+# ↓ Copy output and paste into: copilot
+
+# Execute mode: Runs immediately  
+./ralph.py --execute tasks-kanban plans/tasks.json
+```
 
 ---
 
@@ -72,7 +97,7 @@ ralph brd-prd plans/example-brd.md
 # → Outputs: plans/generated-prd.md (MARKDOWN)
 ```
 - Reads BRD markdown
-- Uses @brd-to-prd skill (~100 lines)
+- Uses @ralph-brd-to-prd skill (~100 lines)
 - **Outputs markdown PRD** (not JSON)
 - Strips markdown code fences
 - Successfully tested
@@ -83,7 +108,7 @@ ralph prd-tasks plans/generated-prd.md
 # → Outputs: plans/tasks.json
 ```
 - Reads **PRD markdown** (not JSON)
-- Uses @prd-to-tasks skill (~100 lines)
+- Uses @ralph-prd-to-tasks skill (~100 lines)
 - Generates tasks with dependency graph
 - Robust JSON extraction
 - Successfully tested (7 tasks generated)
@@ -130,7 +155,7 @@ Features:
 #### 5. ralph review ❌ NOT IMPLEMENTED
 - Needs requirements clarification
 - Read completed tasks from Vibe Kanban
-- Use @task-review skill
+- Use @ralph-task-review skill
 - Append to docs/implementation-log.md
 
 #### 6. ralph cleanup ❌ NOT IMPLEMENTED
@@ -147,22 +172,22 @@ Features:
 
 All skills use YAML frontmatter format and are synced to project scope:
 
-### 1. @brd-to-prd (~100 lines)
+### 1. @ralph-brd-to-prd (~100 lines)
 - BRD markdown → PRD markdown
 - Comprehensive sections (JTBD, User Flows, etc.)
 - 76% smaller than old JSON-based approach
 
-### 2. @prd-to-tasks (~100 lines)
+### 2. @ralph-prd-to-tasks (~100 lines)
 - PRD markdown → tasks.json
 - Dependency analysis
 - Atomic task breakdown
 
-### 3. @task-review (append mode)
+### 3. @ralph-task-review (append mode)
 - Review completed tasks
 - Generate implementation summary
 - **APPEND** to docs/implementation-log.md
 
-### 4. @cleanup-agent (append mode)
+### 4. @ralph-cleanup-agent (append mode)
 - Archive completed work
 - Remove dependencies on completed tasks
 - **APPEND** to docs/cleanup-log.md
@@ -207,10 +232,10 @@ ralph-copilot/
 ├── lib/
 │   └── vibe_kanban_client.py  # Prompt generator
 ├── skills/
-│   ├── brd-to-prd/skill.md    # BRD → PRD markdown (~100 lines)
-│   ├── prd-to-tasks/skill.md  # PRD → Tasks (~100 lines)
-│   ├── task-review/skill.md   # Review & logging
-│   └── cleanup-agent/skill.md # Cleanup & dependencies
+│   ├── ralph-brd-to-prd/skill.md    # BRD → PRD markdown (~100 lines)
+│   ├── ralph-prd-to-tasks/skill.md  # PRD → Tasks (~100 lines)
+│   ├── ralph-task-review/skill.md   # Review & logging
+│   └── ralph-cleanup-agent/skill.md # Cleanup & dependencies
 ├── scripts/
 │   ├── sync-skills.sh         # Sync to project scope
 │   └── cleanup-worktrees.sh   # Git worktree cleanup

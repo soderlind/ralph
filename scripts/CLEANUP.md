@@ -55,7 +55,7 @@ Branches:
 
 ---
 
-## Phase 2: Agent Skill (`prompts/git-cleanup-agent.txt`)
+## Phase 2: Agent Skill (`prompts/git-ralph-cleanup-agent.txt`)
 
 ### Purpose
 Copilot CLI agent skill for interactive, intelligent cleanup of Vibe Kanban artifacts.
@@ -72,10 +72,10 @@ Copilot CLI agent skill for interactive, intelligent cleanup of Vibe Kanban arti
 #### Load the skill in Copilot CLI:
 ```bash
 # Method 1: Using profile flag (if Copilot CLI supports it)
-copilot -p git-cleanup-agent "Clean up vk/* branches"
+copilot -p git-ralph-cleanup-agent "Clean up vk/* branches"
 
 # Method 2: Include in context via @-mention (if supported)
-@git-cleanup-agent Help me clean up old Vibe Kanban branches
+@git-ralph-cleanup-agent Help me clean up old Vibe Kanban branches
 ```
 
 #### The agent will:
@@ -201,5 +201,5 @@ Run cleanup script after automation completes to maintain clean state.
 
 ## Files
 - **Script:** `scripts/cleanup-worktrees.sh`
-- **Skill:** `prompts/git-cleanup-agent.txt`
+- **Skill:** `prompts/git-ralph-cleanup-agent.txt`
 - **Docs:** `scripts/CLEANUP.md` (this file)
