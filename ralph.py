@@ -641,16 +641,18 @@ def main() -> int:
         epilog="""
 Examples:
   ralph brd plans/brd.md                    # Generate PRD from BRD
-  ralph prd plans/prd.json                  # Generate tasks from PRD
+  ralph prd plans/prd.md                    # Generate tasks from PRD
+  ralph tasks plans/tasks.json              # Create tasks in Vibe Kanban
   ralph review plans/tasks.json             # Review completed tasks
   ralph cleanup                             # Cleanup completed work
 
 Full workflow:
-  1. ralph brd plans/brd.md → generates plans/generated-prd.json
-  2. ralph prd plans/generated-prd.json → generates plans/tasks.json
-  3. (execute tasks via vibe-kanban)
-  4. ralph review plans/tasks.json → appends to docs/implementation-log.md
-  5. ralph cleanup → archives, adjusts dependencies, removes worktrees
+  1. ralph brd plans/brd.md → generates plans/generated-prd.md
+  2. ralph prd plans/generated-prd.md → generates plans/tasks.json
+  3. ralph tasks plans/tasks.json → creates tasks in Vibe Kanban
+  4. (work on tasks in Vibe Kanban)
+  5. ralph review plans/tasks.json → appends to docs/implementation-log.md
+  6. ralph cleanup → archives, adjusts dependencies, removes worktrees
         """
     )
     
@@ -684,6 +686,17 @@ Full workflow:
         help="Output path for tasks JSON (default: plans/tasks.json)"
     )
     
+    # ralph tasks
+    tasks_parser = subparsers.add_parser(
+        "tasks",
+        help="Create tasks in Vibe Kanban via MCP"
+    )
+    tasks_parser.add_argument(
+        "tasks_file",
+        nargs="?",
+        help="Path to tasks JSON file (default: plans/tasks.json)"
+    )
+    
     # ralph review
     review_parser = subparsers.add_parser(
         "review",
@@ -711,6 +724,8 @@ Full workflow:
         return cmd_brd(args)
     elif args.command == "prd":
         return cmd_prd(args)
+    elif args.command == "tasks":
+        return cmd_tasks(args)
     elif args.command == "review":
         return cmd_review(args)
     elif args.command == "cleanup":
