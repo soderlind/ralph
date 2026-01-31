@@ -612,6 +612,287 @@ Return a JSON summary:
         return 1
 
 
+def cmd_run(args: argparse.Namespace) -> int:
+    """
+    Handle 'ralph run' command.
+    
+    Starts tasks with no dependencies from Vibe Kanban.
+    Can be called multiple times for progressive execution.
+    """
+    config = load_config()
+    
+    # Get project_id from args or config
+    project_id = args.project_id if hasattr(args, 'project_id') and args.project_id else None
+    if not project_id:
+        project_id = config.get("vibe_kanban", {}).get("project_id")
+    
+    if not project_id:
+        log("❌ No project_id configured")
+        log("💡 Set vibe_kanban.project_id in config/ralph.json or use --project-id")
+        return 1
+    
+    log(f"🚀 Starting tasks from Vibe Kanban project: {project_id}")
+    
+    # Auto-detect current git repository
+    log("🔍 Detecting current git repository...")
+    try:
+        # Get remote URL
+        result = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=10
+        )
+        repo_url = result.stdout.strip()
+        
+        # Extract repo name from URL
+        # Handle both https://github.com/user/repo.git and git@github.com:user/repo.git
+        if repo_url.endswith(".git"):
+            repo_url = repo_url[:-4]
+        repo_name = repo_url.split("/")[-1]
+        
+        log(f"✅ Repository: {repo_name}")
+    except Exception as e:
+        log(f"❌ Failed to detect git repository: {e}")
+        log("💡 Make sure you're in a git repository")
+        return 1
+    
+    # Get repo config
+    repo_config = config.get("vibe_kanban", {}).get("repo_config", {})
+    base_branch = repo_config.get("base_branch", "main")
+    
+    # Step 1: List tasks with status='todo' from Vibe Kanban
+    log("📋 Fetching todo tasks from Vibe Kanban...")
+    
+    model = config.get("vibe_kanban", {}).get("model", "claude-sonnet-4.5")
+    
+    list_prompt = f"""Use the vibe_kanban-list_tasks MCP tool to get all tasks with status='todo' from project {project_id}.
+
+Return ONLY a JSON array of tasks with these fields:
+[
+  {{
+    "task_id": "uuid",
+    "title": "task title",
+    "description": "task description (may contain dependencies)"
+  }},
+  ...
+]
+
+Output ONLY the JSON array, no markdown fences, no extra text."""
+    
+    try:
+        result = subprocess.run(
+            ["copilot", "--model", model, "--no-color", "--stream", "off", "-p", list_prompt],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=True
+        )
+        response = result.stdout.strip()
+        
+        # Clean and parse JSON
+        import re
+        response_cleaned = re.sub(r'\x1b\[[0-9;]*m', '', response)
+        response_cleaned = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', response_cleaned)
+        
+        if "```json" in response_cleaned:
+            response_cleaned = response_cleaned.split("```json", 1)[1].split("```")[0]
+        elif "```" in response_cleaned:
+            response_cleaned = response_cleaned.split("```", 1)[1].split("```")[0]
+        
+        tasks = json.loads(response_cleaned.strip())
+        
+        if not tasks:
+            log("✅ No tasks in todo status")
+            log("💡 All tasks may be in progress or completed!")
+            return 0
+        
+        log(f"✅ Found {len(tasks)} todo tasks")
+        
+    except Exception as e:
+        log(f"❌ Failed to fetch tasks: {e}")
+        return 1
+    
+    # Step 2: Filter tasks with valid Ralph task IDs
+    log("🔍 Filtering tasks with valid task IDs...")
+    
+    valid_tasks = []
+    skipped_tasks = []
+    
+    import re
+    task_id_pattern = re.compile(r'\b([A-Z]+-\d+)\b')
+    
+    for task in tasks:
+        title = task.get("title", "")
+        description = task.get("description", "")
+        
+        # Look for task ID pattern in title or description
+        match = task_id_pattern.search(title + " " + description)
+        
+        if match:
+            # Extract and store the Ralph task ID
+            task["ralph_task_id"] = match.group(1)
+            valid_tasks.append(task)
+        else:
+            skipped_tasks.append(task)
+    
+    log(f"✅ Valid Ralph tasks: {len(valid_tasks)}")
+    if skipped_tasks:
+        log(f"⏭️  Skipped (no task ID): {len(skipped_tasks)} tasks")
+    
+    if not valid_tasks:
+        log("")
+        log("💡 No valid Ralph tasks found in todo status")
+        log("   Tasks created by ralph should have IDs like TASK-001, TASK-002, etc.")
+        return 0
+    
+    # Step 3: Parse dependencies and filter ready tasks
+    log("🔍 Analyzing dependencies...")
+    
+    ready_tasks = []
+    blocked_tasks = []
+    
+    for task in tasks:
+        description = task.get("description", "")
+        
+        # Parse dependencies using regex patterns
+        # Look for: "Depends on: TASK-001, TASK-002" or "Dependencies: TASK-XXX"
+        import re
+        dep_patterns = [
+            r'Depends on:\s*([A-Z]+-\d+(?:\s*,\s*[A-Z]+-\d+)*)',
+            r'Dependencies:\s*([A-Z]+-\d+(?:\s*,\s*[A-Z]+-\d+)*)',
+            r'Dependency:\s*([A-Z]+-\d+)',
+        ]
+        
+        has_dependencies = False
+        for pattern in dep_patterns:
+            if re.search(pattern, description, re.IGNORECASE):
+                has_dependencies = True
+                break
+        
+        if has_dependencies:
+            blocked_tasks.append(task)
+        else:
+            ready_tasks.append(task)
+    
+    log(f"✅ Ready to start: {len(ready_tasks)} tasks")
+    log(f"⏸️  Blocked by dependencies: {len(blocked_tasks)} tasks")
+    
+    if not ready_tasks:
+        log("")
+        log("💡 No tasks ready to start (all have dependencies)")
+        log("   Complete some tasks first, then run 'ralph run' again")
+        return 0
+    
+    # Step 4: Respect max_parallel_tasks limit
+    max_parallel = config.get("execution", {}).get("max_parallel_tasks", 3)
+    tasks_to_start = ready_tasks[:max_parallel]
+    
+    if len(ready_tasks) > max_parallel:
+        log(f"⚠️  Limiting to {max_parallel} tasks (max_parallel_tasks config)")
+    
+    # Step 5: Start workspace sessions
+    log(f"\n🚀 Starting {len(tasks_to_start)} workspace sessions...")
+    
+    executor = config.get("vibe_kanban", {}).get("executor", "CLAUDE_CODE")
+    variant = config.get("vibe_kanban", {}).get("variant")
+    
+    started = []
+    failed = []
+    
+    for task in tasks_to_start:
+        task_id = task.get("task_id")
+        title = task.get("title", "Untitled")
+        ralph_task_id = task.get("ralph_task_id", "UNKNOWN")
+        
+        log(f"\n📌 Starting: [{ralph_task_id}] {title}")
+        log(f"   Vibe Kanban ID: {task_id}")
+        
+        # Build prompt to start workspace session
+        start_prompt = f"""Use the vibe_kanban-start_workspace_session MCP tool to start work on task {task_id}.
+
+Parameters:
+- task_id: {task_id}
+- executor: {executor}
+{"- variant: " + variant if variant else ""}
+- repos: [
+    {{
+      "repo": "{repo_name}",
+      "base_branch": "{base_branch}"
+    }}
+  ]
+
+After starting, return a JSON response:
+{{
+  "success": true,
+  "task_id": "{task_id}",
+  "message": "Workspace started"
+}}
+
+Or if failed:
+{{
+  "success": false,
+  "task_id": "{task_id}",
+  "error": "error message"
+}}"""
+        
+        try:
+            result = subprocess.run(
+                ["copilot", "--model", model, "--no-color", "--stream", "off", "-p", start_prompt],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=True
+            )
+            
+            # Consider it started if command succeeded
+            started.append({"task_id": task_id, "title": title, "ralph_id": ralph_task_id})
+            log(f"   ✅ Started")
+            
+        except Exception as e:
+            failed.append({"task_id": task_id, "title": title, "ralph_id": ralph_task_id, "error": str(e)})
+            log(f"   ❌ Failed: {e}")
+    
+    # Step 6: Report summary
+    log("\n" + "="*60)
+    log("📊 Summary")
+    log("="*60)
+    log(f"✅ Started: {len(started)} tasks")
+    for task in started:
+        ralph_id = task.get('ralph_id', 'N/A')
+        log(f"   • [{ralph_id}] {task['title']} ({task['task_id']})")
+    
+    if failed:
+        log(f"\n❌ Failed: {len(failed)} tasks")
+        for task in failed:
+            ralph_id = task.get('ralph_id', 'N/A')
+            log(f"   • [{ralph_id}] {task['title']} ({task['task_id']})")
+            log(f"     Error: {task['error']}")
+    
+    if skipped_tasks:
+        log(f"\n⏭️  Skipped: {len(skipped_tasks)} tasks (no Ralph task ID)")
+        for task in skipped_tasks[:5]:  # Show first 5
+            log(f"   • {task.get('title', 'Untitled')}")
+        if len(skipped_tasks) > 5:
+            log(f"   ... and {len(skipped_tasks) - 5} more")
+    
+    if blocked_tasks:
+        log(f"\n⏸️  Blocked: {len(blocked_tasks)} tasks (have dependencies)")
+    
+    if len(ready_tasks) > max_parallel:
+        remaining = len(ready_tasks) - max_parallel
+        log(f"\n💡 {remaining} more tasks ready - run 'ralph run' again to start them")
+    
+    log("")
+    log("👉 Next steps:")
+    log("   1. Monitor task progress in Vibe Kanban dashboard")
+    log("   2. Run 'ralph run' again to start more tasks")
+    log("   3. Review completed work: ralph review")
+    
+    return 0 if not failed else 1
+
+
 def cmd_review(args: argparse.Namespace) -> int:
     """
     Handle 'ralph review' command.
