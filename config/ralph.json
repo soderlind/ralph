@@ -1,0 +1,66 @@
+{
+  "project_name": "ralph-sdlc-wrapper",
+  "version": "0.1.0",
+  "vibe_kanban": {
+    "project_id": null,
+    "executor": "CLAUDE_CODE",
+    "variant": null,
+    "model": "claude-sonnet-4.5",
+    "repo_config": {
+      "base_branch": "main",
+      "setup_script": "",
+      "cleanup_script": "",
+      "dev_server_script": ""
+    }
+  },
+  "task_defaults": {
+    "categories": [
+      "functional",
+      "architecture",
+      "documentation",
+      "testing",
+      "infrastructure"
+    ],
+    "default_category": "functional"
+  },
+  "execution": {
+    "max_parallel_tasks": 3,
+    "poll_interval_seconds": 30,
+    "max_retries": 3
+  },
+  "paths": {
+    "brd": "plans/brd.md",
+    "prd": "plans/prd.json",
+    "tasks": "plans/tasks.json",
+    "implementation_log": "docs/implementation-log.md",
+    "cleanup_log": "docs/cleanup-log.md",
+    "archive_dir": "plans/done"
+  },
+  "skills": {
+    "brd_to_prd": {
+      "path": "skills/brd-to-prd",
+      "model": "claude-sonnet-4.5",
+      "temperature": 0.7
+    },
+    "prd_to_tasks": {
+      "path": "skills/prd-to-tasks",
+      "model": "claude-sonnet-4.5",
+      "temperature": 0.5
+    },
+    "task_review": {
+      "path": "skills/task-review",
+      "model": "claude-sonnet-4.5",
+      "temperature": 0.3
+    },
+    "cleanup_agent": {
+      "path": "skills/cleanup-agent",
+      "model": "claude-haiku-4.5",
+      "temperature": 0.3
+    }
+  },
+  "mcp": {
+    "config_path": "~/.copilot/mcp-config.json",
+    "required_servers": ["vibe_kanban"],
+    "check_command": "npx vibe-kanban --version"
+  }
+}
