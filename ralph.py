@@ -364,15 +364,20 @@ Output ONLY the tasks JSON array (no markdown fences, no extra text)."""
 
 def cmd_tasks_kanban(args: argparse.Namespace) -> int:
     """
-    Handle 'ralph tasks' command.
+    Handle 'ralph tasks-kanban' command.
     
     Creates tasks in Vibe Kanban via MCP using coding agent.
+    Defaults to plans/tasks.json if no path provided.
     """
     config = load_config()
     tasks_path = Path(args.tasks_file or config["paths"]["tasks"])
     
     if not tasks_path.exists():
-        log(f"❌ Tasks file not found: {tasks_path}")
+        if args.tasks_file:
+            log(f"❌ Tasks file not found: {tasks_path}")
+        else:
+            log(f"❌ Tasks file not found: {tasks_path} (default location)")
+            log(f"💡 Generate tasks first: ralph prd-tasks <prd-file>")
         return 1
     
     log(f"📖 Reading tasks: {tasks_path}")
