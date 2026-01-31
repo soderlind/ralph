@@ -11,246 +11,626 @@ Ralph automates the journey from **Business Requirements → Product Requirement
 - **Vibe-Kanban integration** (task management and workspace orchestration)
 - **Phase-contextual commands** (clear workflow progression)
 
-## Quick Start
+---
 
-Choose your starting point:
+## 📋 Prerequisites
 
-### Option A: Start with Business Requirements (BRD)
+Before using Ralph, ensure you have:
 
-If you have business requirements in markdown format:
+### Required
+1. **Python 3.8+** - Check with: `python --version`
+2. **GitHub Copilot CLI** - Install: `npm install -g @githubnext/github-copilot-cli`
+3. **Git** - Check with: `git --version`
+4. **Vibe-Kanban MCP** - Configured in your MCP settings (see Setup below)
 
-#### 1. Transform BRD → PRD
+### Optional
+- **npx** (comes with Node.js) - For running Vibe-Kanban
+- **GitHub account** with Copilot subscription
 
-```bash
-ralph brd-prd plans/my-product-brd.md
-# Output: plans/generated-prd.md (Product Requirements Document)
-```
+---
 
-#### 2. Break PRD into Tasks
+## 🚀 Setup (Step-by-Step)
 
-```bash
-ralph prd-tasks plans/generated-prd.md
-# Output: plans/tasks.json (atomic tasks with dependencies)
-```
-
-### Option B: Start with Product Requirements (PRD)
-
-If you already have a PRD in markdown format:
-
-#### 1. Break PRD into Tasks
+### Step 1: Install Ralph
 
 ```bash
-ralph prd-tasks plans/my-product-prd.md
-# Output: plans/tasks.json (atomic tasks with dependencies)
+# Clone the repository
+git clone https://github.com/yourusername/ralph-copilot.git
+cd ralph-copilot
+
+# Make ralph.py executable
+chmod +x ralph.py
+
+# Optional: Add alias to your shell profile (~/.bashrc or ~/.zshrc)
+alias ralph="python /path/to/ralph-copilot/ralph.py"
 ```
 
-### Both Options: Create Tasks & Execute
+### Step 2: Configure Vibe-Kanban MCP
 
-#### 2. Create Tasks in Vibe-Kanban
+Ralph uses Vibe-Kanban MCP for task management. You need to configure it once:
+
+#### 2.1 Find your MCP config file
+```bash
+# For Copilot CLI, it's usually at:
+~/.copilot/mcp-config.json
+
+# Or for Claude Desktop:
+~/.claude/mcp-config.json
+```
+
+#### 2.2 Add vibe-kanban MCP configuration
+
+Open your MCP config and add:
+
+```json
+{
+  "vibe-kanban": {
+    "command": "npx",
+    "args": ["-y", "vibe-kanban@latest", "--mcp"]
+  }
+}
+```
+
+**Reference**: See `config/mcp-config.json` in this repo for a complete example.
+
+### Step 3: Grant MCP Permissions (IMPORTANT!)
+
+Vibe-Kanban MCP requires permission approval. This is a **one-time setup**:
 
 ```bash
-ralph tasks-kanban plans/tasks.json
-# Creates tasks in Vibe-Kanban, saves kanban_ids
+# 1. Start Copilot in interactive mode
+copilot
+
+# 2. In the chat, type:
+Use vibe_kanban-list_projects to show all my projects
+
+# 3. When prompted, type 'y' to approve permission
+# Permission is saved permanently!
+
+# 4. Type 'exit' to quit
 ```
 
-#### 3. Start Ready Tasks
+**Why is this needed?** MCP tools require explicit user permission for security. This can only be granted in interactive mode.
 
-```bash
-ralph run
-# Starts workspace sessions for tasks with no dependencies
-# Call again to start newly-ready tasks
-```
-
-## The Workflow
-
-```
-BRD.md → brd-prd → PRD.md → prd-tasks → tasks.json → tasks-kanban → Vibe Kanban
-                                                                           ↓
-                                                                         run
-                                                                           ↓
-                                                                   Workspace Sessions
-```
-
-### Phase 1: BRD → PRD
-Transform business requirements into a product requirements document with acceptance criteria, user flows, and technical constraints.
-
-**Command**: `ralph brd-prd <brd-file>`
-
-### Phase 2: PRD → Tasks
-Break the PRD into atomic, executable tasks with clear dependencies and priorities.
-
-**Command**: `ralph prd-tasks <prd-file>`
-
-### Phase 3: Tasks → Kanban
-Create tasks in Vibe-Kanban, linking them to a coding agent executor.
-
-**Command**: `ralph tasks-kanban <tasks-file>`
-
-### Phase 4: Execute Tasks
-Start workspace sessions for tasks that are ready (status=todo, no dependencies).
-
-**Command**: `ralph run`
-
-### Phase 5: Review & Cleanup (Optional)
-Review completed work and clean up dependencies.
-
-**Commands**: `ralph review`, `ralph cleanup`
-
-## Project Structure
-
-```
-ralph-copilot/
-├── README.md                    # This file
-├── LICENSE
-│
-├── config/
-│   ├── ralph.json              # Main configuration
-│   └── mcp-config.json         # Vibe-Kanban MCP configuration
-│
-├── docs/
-│   ├── ARCHITECTURE.md         # Technical architecture & schemas
-│   └── WORKFLOW.md             # Complete workflow guide
-│
-├── lib/
-│   └── vibe_kanban_client.py   # Vibe-Kanban integration library
-│
-├── skills/                     # AI skills for transformations
-│   ├── brd-to-prd/
-│   ├── prd-to-tasks/
-│   ├── task-review/
-│   └── cleanup-agent/
-│
-├── scripts/
-│   └── cleanup-worktrees.sh    # Workspace cleanup utility
-│
-└── plans/                      # BRD, PRD, tasks storage
-    └── done/                   # Archived completed tasks
-```
-
-## Key Features
-
-### 🎯 Markdown-First Design
-- BRDs and PRDs are plain markdown files
-- Human-readable and version-controllable
-- LLMs understand markdown excellently
-
-### 🤖 AI-Powered Transformations
-Each phase uses domain-specific skills:
-- **@brd-to-prd**: Transforms business goals into product requirements
-- **@prd-to-tasks**: Breaks requirements into executable tasks
-- **@task-review**: Documents technical decisions
-- **@cleanup-agent**: Handles completion and dependency cleanup
-
-### 🔗 Living Status in Vibe-Kanban
-- Task definitions start in `tasks.json`
-- Real-time status lives in Vibe-Kanban
-- `ralph run` always reads current state
-- Call multiple times to start newly-ready tasks
-
-### 📋 Dependency Management
-Tasks are executed progressively:
-1. Only tasks with `status='todo'` and no dependencies start
-2. As dependencies complete, new tasks become ready
-3. `ralph run` can be called repeatedly to start next batches
-
-### 📝 Append-Only Logging
-- `ralph review` and `ralph cleanup` append to logs
-- History is preserved, nothing is overwritten
-- Easy to track decisions and changes
-
-## Configuration
+### Step 4: Configure Ralph (Optional)
 
 Edit `config/ralph.json` to customize:
 
 ```json
 {
   "vibe_kanban": {
-    "executor": "CLAUDE_CODE",
-    "model": "claude-sonnet-4.5",
-    "project_id": "your-project-uuid-here"
-  },
-  "paths": {
-    "brd": "plans/brd.md",
-    "prd": "plans/generated-prd.md",
-    "tasks": "plans/tasks.json"
+    "project_name": "MyProject",  // Set your Vibe-Kanban project name
+    "executor": "CLAUDE_CODE",     // Default coding agent
+    "model": "claude-sonnet-4.5"   // Default model
   }
 }
 ```
 
-## Installation & Setup
+If you don't set `project_name`, Ralph will prompt you to select a project when running `tasks-kanban`.
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/your-org/ralph-copilot.git
-   cd ralph-copilot
-   ```
+### Step 5: Sync Skills (First-time only)
 
-2. **Ensure GitHub Copilot CLI is installed**
-   ```bash
-   copilot --version
-   ```
-
-3. **Configure Vibe-Kanban** (optional)
-   ```bash
-   cp config/mcp-config.json ~/.copilot/mcp-config.json
-   # Edit to add your vibe-kanban MCP server details
-   ```
-
-4. **Set your project ID** in `config/ralph.json`
-
-## Usage Examples
-
-### Complete Workflow Example
+Ralph uses AI skills that need to be in your project scope:
 
 ```bash
-# 1. Generate PRD from BRD
-ralph brd-prd plans/my-product.md
-# Review and edit plans/generated-prd.md
+# Run the sync script
+./scripts/sync-skills.sh
 
-# 2. Generate tasks from PRD
-ralph prd-tasks plans/generated-prd.md
-# Review and edit plans/tasks.json
-
-# 3. Create tasks in Vibe-Kanban
-ralph tasks-kanban plans/tasks.json
-# Tasks now in Vibe-Kanban with kanban_ids
-
-# 4. Start first batch of ready tasks
-ralph run
-# Workspace sessions start for tasks with no dependencies
-
-# 5. Monitor progress in Vibe-Kanban dashboard
-# (tasks update status as work progresses)
-
-# 6. Start next batch when ready
-ralph run
-# Starts newly-ready tasks
-
-# 7. Review completed tasks (optional)
-ralph review plans/tasks.json
-# Appends to docs/implementation-log.md
-
-# 8. Cleanup completed work (optional)
-ralph cleanup
-# Archives tasks, adjusts dependencies, appends to docs/cleanup-log.md
+# This copies skills to .copilot/skills/ and .claude/skills/
 ```
 
-## Documentation
+---
 
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Technical architecture, data schemas, CLI structure
-- **[WORKFLOW.md](docs/WORKFLOW.md)** - Complete workflow guide with examples
+## 🎯 Quick Start Guide
 
-## Troubleshooting
+### Example: Build a Simple Todo App
 
-### MCP Permission Denied
+Let's walk through creating a simple todo app from scratch.
 
-If you see "Permission denied" when running `ralph tasks-kanban`:
+#### Step 1: Create a BRD (Business Requirements Document)
 
-**Problem**: Vibe-Kanban MCP requires permission approval, which can only happen in **interactive mode**.
+Create `plans/todo-app-brd.md`:
 
-**Solution**: Grant permission once (saved permanently):
+```markdown
+# Todo App - Business Requirements
 
-1. Run Copilot in interactive mode:
+## Business Goals
+- Help users track their daily tasks
+- Simple, fast, no login required
+- Works on any device
+
+## Market Context
+- Target: Busy professionals
+- Competition: Todoist, Any.do (too complex)
+- Our edge: Simplicity
+
+## High-Level Requirements
+- Add new todos
+- Mark todos as complete
+- Delete completed todos
+- Persist data in browser
+
+## Success Metrics
+- User can add 5 todos in under 30 seconds
+- Zero load time (client-side only)
+
+## Constraints
+- Must work offline
+- No backend/database
+- Under 100 lines of code
+```
+
+#### Step 2: Transform BRD → PRD
+
+```bash
+python ralph.py brd-prd plans/todo-app-brd.md
+```
+
+**What happens:**
+- Ralph reads your BRD
+- Uses AI to create a detailed Product Requirements Document
+- Saves to `plans/generated-prd.md`
+- Shows you the output
+
+**Output example**: `plans/generated-prd.md` will contain:
+- Jobs To Be Done (JTBD)
+- Acceptance Criteria
+- User Flows
+- Technical Constraints
+- Success Metrics
+
+#### Step 3: Break PRD → Tasks
+
+```bash
+python ralph.py prd-tasks plans/generated-prd.md
+```
+
+**What happens:**
+- Ralph reads the PRD
+- Uses AI to break it into atomic implementation tasks
+- Identifies dependencies between tasks
+- Saves to `plans/tasks.json`
+
+**Output example**: `plans/tasks.json` will contain:
+```json
+[
+  {
+    "id": "TASK-001",
+    "description": "Create HTML structure",
+    "dependencies": [],
+    ...
+  },
+  {
+    "id": "TASK-002",
+    "description": "Add todo functionality",
+    "dependencies": ["TASK-001"],
+    ...
+  }
+]
+```
+
+#### Step 4: Create Tasks in Vibe-Kanban
+
+```bash
+python ralph.py tasks-kanban plans/tasks.json
+```
+
+**What happens:**
+- Ralph checks if Vibe-Kanban MCP is running
+- Prompts you to select a project (or uses configured project_name)
+- Creates all tasks in Vibe-Kanban with their dependencies
+- You can now see tasks at https://vibekanban.com/
+
+**Interactive**: If no project_name is set, you'll be asked to select:
+```
+Available projects:
+1. MyProject
+2. AnotherProject
+
+Type the project name:
+```
+
+#### Step 5: Start Ready Tasks
+
+```bash
+python ralph.py run
+```
+
+**What happens:**
+- Ralph fetches all TODO tasks from Vibe-Kanban
+- Filters tasks with Ralph IDs (TASK-001, TASK-002, etc.)
+- Identifies tasks with no dependencies
+- Starts workspace sessions for ready tasks
+- Coding agents begin implementing them in parallel
+
+**Progressive Execution**: Call `ralph run` multiple times as tasks complete:
+```bash
+# First run: starts TASK-001, TASK-002 (no dependencies)
+python ralph.py run
+
+# Wait for completion...
+
+# Second run: starts TASK-003 (depends on TASK-001, TASK-002)
+python ralph.py run
+```
+
+#### Step 6: Review Completed Work
+
+```bash
+python ralph.py review
+```
+
+**What happens:**
+- Fetches all DONE tasks from Vibe-Kanban
+- Generates implementation summaries
+- Appends to `docs/implementation-log.md`
+- Auto-runs cleanup (removes from Vibe-Kanban, archives locally)
+
+**Optional**: Review without cleanup:
+```bash
+python ralph.py review --no-cleanup
+```
+
+#### Step 7: Cleanup (Optional, if not auto-cleaned)
+
+```bash
+python ralph.py cleanup
+```
+
+**What happens:**
+- Only processes tasks that were reviewed (in implementation-log.md)
+- Archives completed tasks to `plans/done/`
+- Removes dependencies from remaining tasks
+- Cleans up git worktrees
+- Deletes from Vibe-Kanban
+- Appends to `docs/cleanup-log.md`
+
+---
+
+## 📖 The Complete Workflow
+
+```
+┌─────────────┐
+│   BRD.md    │  Business requirements in markdown
+│  (Manual)   │
+└──────┬──────┘
+       │ ralph brd-prd
+       ▼
+┌─────────────┐
+│   PRD.md    │  Product requirements with acceptance criteria
+│  (Generated)│
+└──────┬──────┘
+       │ ralph prd-tasks
+       ▼
+┌─────────────┐
+│ tasks.json  │  Atomic tasks with dependencies
+│  (Generated)│
+└──────┬──────┘
+       │ ralph tasks-kanban
+       ▼
+┌─────────────┐
+│ Vibe Kanban │  Tasks created as kanban cards
+│  (Living)   │
+└──────┬──────┘
+       │ ralph run (multiple times)
+       ▼
+┌─────────────┐
+│  Workspace  │  Coding agents implement tasks
+│  Sessions   │
+└──────┬──────┘
+       │ ralph review
+       ▼
+┌─────────────┐
+│   Done &    │  Implementation log + cleanup
+│  Archived   │
+└─────────────┘
+```
+
+---
+
+## 📚 Command Reference
+
+### `ralph brd-prd <brd-file>`
+
+Transform Business Requirements into Product Requirements Document.
+
+**Input**: Markdown file with business goals, market context, requirements  
+**Output**: `plans/generated-prd.md` (or custom path)  
+**AI Skill**: `@brd-to-prd`
+
+**Example**:
+```bash
+python ralph.py brd-prd plans/my-feature-brd.md
+
+# Custom output path
+python ralph.py brd-prd plans/my-feature-brd.md plans/custom-prd.md
+```
+
+---
+
+### `ralph prd-tasks <prd-file>`
+
+Break Product Requirements into atomic implementation tasks.
+
+**Input**: Markdown PRD file  
+**Output**: `plans/tasks.json` with tasks and dependencies  
+**AI Skill**: `@prd-to-tasks`
+
+**Example**:
+```bash
+python ralph.py prd-tasks plans/generated-prd.md
+
+# Custom output path
+python ralph.py prd-tasks plans/my-prd.md plans/custom-tasks.json
+```
+
+**Output Structure**:
+```json
+[
+  {
+    "id": "TASK-001",
+    "category": "setup",
+    "description": "Create project structure",
+    "details": "...",
+    "steps": ["Step 1", "Step 2"],
+    "acceptance": ["Criteria 1", "Criteria 2"],
+    "dependencies": [],
+    "priority": 1,
+    "status": "todo"
+  }
+]
+```
+
+---
+
+### `ralph tasks-kanban [tasks-file]`
+
+Create tasks in Vibe-Kanban from tasks.json.
+
+**Input**: `plans/tasks.json` (default) or custom path  
+**Output**: Tasks created in Vibe-Kanban  
+**MCP**: Uses `vibe_kanban-create_task`
+
+**Example**:
+```bash
+# Use default tasks.json location
+python ralph.py tasks-kanban
+
+# Custom tasks file
+python ralph.py tasks-kanban plans/my-tasks.json
+```
+
+**What it does**:
+1. Checks Vibe-Kanban MCP is running
+2. Lists available projects (or uses configured project_name)
+3. Prompts you to select project (if needed)
+4. Creates all tasks with dependencies
+5. Shows Vibe-Kanban URL
+
+**Interactive**:
+- If `project_name` not set in config, you'll be prompted to select
+- Permission approval required on first use (see Troubleshooting)
+
+---
+
+### `ralph run`
+
+Start workspace sessions for ready tasks (no dependencies).
+
+**Input**: Fetches tasks from Vibe-Kanban (status=todo)  
+**Output**: Starts coding agent workspace sessions  
+**MCP**: Uses `vibe_kanban-list_tasks`, `vibe_kanban-start_workspace_session`
+
+**Example**:
+```bash
+# Start ready tasks
+python ralph.py run
+
+# Call again after some tasks complete
+python ralph.py run
+```
+
+**How it works**:
+1. Fetches all TODO tasks from Vibe-Kanban
+2. Filters tasks with Ralph IDs (TASK-001, TASK-002, etc.)
+3. Parses dependencies from task descriptions
+4. Starts tasks with no unmet dependencies
+5. Respects `max_parallel_tasks` config (default: 3)
+
+**Progressive Execution**:
+```bash
+# Round 1: Starts TASK-001, TASK-002 (no dependencies)
+python ralph.py run
+
+# ... wait for completion ...
+
+# Round 2: Starts TASK-003 (depends on TASK-001)
+python ralph.py run
+
+# ... wait for completion ...
+
+# Round 3: Starts TASK-004 (depends on TASK-002, TASK-003)
+python ralph.py run
+```
+
+---
+
+### `ralph review [--no-cleanup]`
+
+Review completed tasks and optionally cleanup.
+
+**Input**: Fetches DONE tasks from Vibe-Kanban  
+**Output**: Appends to `docs/implementation-log.md`  
+**AI Skill**: `@task-review`
+
+**Example**:
+```bash
+# Review and auto-cleanup
+python ralph.py review
+
+# Review only (no cleanup)
+python ralph.py review --no-cleanup
+```
+
+**What it does**:
+1. Fetches DONE tasks from Vibe-Kanban
+2. Filters tasks with Ralph IDs
+3. Generates implementation summaries
+4. Appends to `docs/implementation-log.md`
+5. Auto-runs cleanup (unless `--no-cleanup`)
+
+---
+
+### `ralph cleanup`
+
+Cleanup reviewed tasks (archive, remove dependencies, delete from Vibe-Kanban).
+
+**Input**: Reads `docs/implementation-log.md` for reviewed task IDs  
+**Output**: Appends to `docs/cleanup-log.md`  
+**AI Skill**: `@cleanup-agent`
+
+**Example**:
+```bash
+python ralph.py cleanup
+```
+
+**What it does**:
+1. Reads reviewed task IDs from `docs/implementation-log.md`
+2. Archives tasks to `plans/done/tasks-{timestamp}.json`
+3. Removes completed task IDs from remaining tasks' dependencies
+4. Runs `scripts/cleanup-worktrees.sh`
+5. Deletes tasks from Vibe-Kanban
+6. Appends to `docs/cleanup-log.md`
+
+**Safety**: Only processes tasks that are:
+- Listed in `docs/implementation-log.md` (reviewed)
+- In DONE status in Vibe-Kanban
+
+---
+
+## 📁 Project Structure
+
+```
+ralph-copilot/
+├── ralph.py                     # Main CLI entry point
+├── README.md                    # This file
+├── LICENSE
+│
+├── config/
+│   ├── ralph.json              # Main configuration
+│   └── mcp-config.json         # Vibe-Kanban MCP boilerplate
+│
+├── docs/
+│   ├── ARCHITECTURE.md         # Technical architecture & schemas
+│   ├── WORKFLOW.md             # Complete workflow guide
+│   ├── implementation-log.md   # Auto-generated (task reviews)
+│   └── cleanup-log.md          # Auto-generated (cleanup summaries)
+│
+├── lib/
+│   └── vibe_kanban_client.py   # Vibe-Kanban MCP prompt generator
+│
+├── skills/                     # AI skills for transformations
+│   ├── brd-to-prd/
+│   │   └── skill.md            # BRD → PRD transformation
+│   ├── prd-to-tasks/
+│   │   └── skill.md            # PRD → Tasks breakdown
+│   ├── task-review/
+│   │   └── skill.md            # Task review & summary
+│   └── cleanup-agent/
+│       └── skill.md            # Cleanup & dependency adjustment
+│
+├── scripts/
+│   ├── sync-skills.sh          # Sync skills to project scope
+│   └── cleanup-worktrees.sh    # Git worktree cleanup utility
+│
+└── plans/                      # Your project files
+    ├── done/                   # Archived completed tasks
+    ├── tasks.json              # Generated tasks (if exists)
+    └── *.md                    # Your BRDs and PRDs
+```
+
+---
+
+## ⚙️ Configuration
+
+### `config/ralph.json`
+
+Main configuration file with all Ralph settings:
+
+```json
+{
+  "project_name": "ralph-sdlc-wrapper",
+  "version": "0.1.0",
+  
+  "vibe_kanban": {
+    "project_name": null,           // Set to auto-select Vibe-Kanban project
+    "executor": "CLAUDE_CODE",      // Default coding agent
+    "model": "claude-sonnet-4.5",   // Default model
+    "repo_config": {
+      "base_branch": "main",
+      "setup_script": "",
+      "cleanup_script": "",
+      "dev_server_script": ""
+    }
+  },
+  
+  "task_defaults": {
+    "categories": ["setup", "functional", "documentation", "testing"],
+    "default_category": "functional"
+  },
+  
+  "execution": {
+    "max_parallel_tasks": 3,       // Max tasks to run simultaneously
+    "poll_interval_seconds": 30,
+    "max_retries": 3
+  },
+  
+  "paths": {
+    "brd": "plans/input-brd.md",
+    "prd": "plans/generated-prd.md",
+    "tasks": "plans/tasks.json",
+    "implementation_log": "docs/implementation-log.md",
+    "cleanup_log": "docs/cleanup-log.md",
+    "archive_dir": "plans/done"
+  },
+  
+  "skills": {
+    "brd-to-prd": {
+      "path": "skills/brd-to-prd",
+      "model": "claude-sonnet-4.5",
+      "temperature": 0.7
+    },
+    "prd-to-tasks": {
+      "path": "skills/prd-to-tasks",
+      "model": "claude-sonnet-4.5",
+      "temperature": 0.5
+    }
+  }
+}
+```
+
+**Key Settings**:
+- `vibe_kanban.project_name`: Set this to auto-select your Vibe-Kanban project
+- `execution.max_parallel_tasks`: Control how many tasks run simultaneously
+- `paths.*`: Customize where files are saved
+
+---
+
+## 🔧 Troubleshooting
+
+### Problem: "Permission denied" when running `ralph tasks-kanban`
+
+**Symptom**:
+```
+❌ Permission denied for vibe_kanban MCP
+💡 Please grant permission when prompted by Copilot
+```
+
+**Root Cause**: Vibe-Kanban MCP requires permission approval, which can only happen in **interactive mode**.
+
+**Solution** (one-time setup):
+
+1. Start Copilot interactively:
    ```bash
    copilot
    ```
@@ -260,9 +640,21 @@ If you see "Permission denied" when running `ralph tasks-kanban`:
    Use vibe_kanban-list_projects to show all my projects
    ```
 
-3. When prompted, approve the permission by typing `y`
+3. When prompted, approve the permission:
+   ```
+   ⚠️  MCP Tool Permission Request
+       Tool: vibe_kanban-list_projects
+       Server: vibe-kanban
+   
+       Allow this tool? [y/N]: y
+   ```
 
-4. After approval, `ralph tasks-kanban` will work!
+4. Permission is saved permanently! Now exit:
+   ```
+   exit
+   ```
+
+5. Try `ralph tasks-kanban` again - it should work now!
 
 **Alternative**: If you know your project name, add it to `config/ralph.json`:
 ```json
@@ -271,7 +663,122 @@ If you see "Permission denied" when running `ralph tasks-kanban`:
 }
 ```
 
-## Design Principles
+---
+
+### Problem: "No valid Ralph tasks found"
+
+**Symptom**:
+```
+💡 No valid Ralph tasks found in todo status
+   Tasks created by ralph should have IDs like TASK-001, TASK-002, etc.
+```
+
+**Cause**: Ralph only processes tasks with IDs matching the pattern `TASK-001`, `TASK-002`, etc.
+
+**Solution**:
+- Ensure your tasks.json has proper IDs
+- Run `ralph tasks-kanban` to create tasks with correct IDs
+- Tasks created manually in Vibe-Kanban without Ralph IDs are skipped (by design)
+
+---
+
+### Problem: Tasks not starting (dependencies)
+
+**Symptom**: `ralph run` says no ready tasks, but you see TODO tasks in Vibe-Kanban
+
+**Cause**: Tasks have unmet dependencies
+
+**Solution**:
+1. Check task descriptions for dependency mentions:
+   ```
+   Depends on: TASK-001, TASK-002
+   ```
+2. Complete those tasks first
+3. Run `ralph run` again - dependent tasks will start automatically
+
+---
+
+### Problem: "Vibe-Kanban MCP not running"
+
+**Symptom**:
+```
+❌ vibe-kanban MCP may not be running
+💡 Please ensure vibe-kanban MCP is configured
+```
+
+**Solution**:
+1. Check your MCP config file exists:
+   ```bash
+   cat ~/.copilot/mcp-config.json
+   # or
+   cat ~/.claude/mcp-config.json
+   ```
+
+2. Ensure vibe-kanban is configured:
+   ```json
+   {
+     "vibe-kanban": {
+       "command": "npx",
+       "args": ["-y", "vibe-kanban@latest", "--mcp"]
+     }
+   }
+   ```
+
+3. Restart your Copilot CLI or coding environment
+
+---
+
+## 🎯 Key Concepts
+
+### Living Status in Vibe-Kanban
+- **tasks.json**: Initial task definitions (created once, becomes stale)
+- **Vibe-Kanban**: Living status (real-time, always current)
+- **ralph run**: Always reads from Vibe-Kanban, never tasks.json
+- This enables progressive execution - call `ralph run` multiple times
+
+### Task ID Filtering
+Ralph only processes tasks with IDs like `TASK-001`, `TASK-002`:
+- ✅ `TASK-001: Create database` → Ralph will process
+- ✅ `FEATURE-042: Add API` → Ralph will process  
+- ❌ `Fix homepage bug` → Ralph will skip (no ID)
+- ❌ `Update docs` → Ralph will skip (no ID)
+
+This prevents Ralph from starting or cleaning tasks you created manually.
+
+### Progressive Execution
+```bash
+# Round 1: Start tasks with no dependencies
+ralph run
+# Output: Started TASK-001, TASK-002
+
+# ... wait for completion ...
+
+# Round 2: Start tasks that depended on TASK-001, TASK-002
+ralph run
+# Output: Started TASK-003 (was waiting for TASK-001)
+
+# Round 3: Continue until all done
+ralph run
+# Output: No ready tasks (all done or waiting)
+```
+
+### Append-Only Logging
+- `docs/implementation-log.md`: Appended by `ralph review`
+- `docs/cleanup-log.md`: Appended by `ralph cleanup`
+- History is never lost, only added to
+- Each entry is timestamped
+
+---
+
+## 📖 Documentation
+
+- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Technical architecture, data schemas, CLI structure
+- **[WORKFLOW.md](docs/WORKFLOW.md)** - Complete workflow guide with examples
+- **[SUMMARY.md](SUMMARY.md)** - Implementation status and changelog
+
+---
+
+## 💡 Design Principles
 
 1. **Markdown for Documents** - Human-readable, LLM-parseable, version-controllable
 2. **Prompt-Based Integration** - Clean separation between Ralph and coding agents
@@ -279,18 +786,25 @@ If you see "Permission denied" when running `ralph tasks-kanban`:
 4. **Living Status in Vibe-Kanban** - Single source of truth for task status
 5. **Phase-Contextual Commands** - Clear workflow progression from BRD → PRD → Tasks → Execution
 
-## Requirements
+---
+
+## 📦 Requirements
 
 - Python 3.8+
-- GitHub Copilot CLI
+- GitHub Copilot CLI (`npm install -g @githubnext/github-copilot-cli`)
 - Git
-- Vibe-Kanban (optional, for task management)
+- Vibe-Kanban MCP (configured in MCP settings)
+- GitHub account with Copilot subscription
 
-## License
+---
+
+## 📝 License
 
 See [LICENSE](LICENSE) file.
 
-## Contributing
+---
+
+## 🤝 Contributing
 
 Ralph is a work in progress. See [SUMMARY.md](SUMMARY.md) for current status and roadmap.
 
