@@ -1,0 +1,363 @@
+● {
+    "project_name": "Task Management System for Development Teams",
+    "version": "1.0.0",
+    "created_at": "2026-01-31T13:02:13.094Z",
+    "brd_source": "plans/brd.md",
+    "overview": "A lightweight, self-hosted task management system designed for small to medium
+  development teams (5-20 people) that provides Kanban-style task tracking, real-time
+  collaboration, task dependencies, and seamless GitHub integration without the complexity and
+  cost of enterprise tools.",
+    "jtbd": [
+      {
+        "persona": "Developer",
+        "job": "Create and assign tasks quickly without navigating complex forms or workflows",
+        "outcome": "Spend more time coding and less time on administrative overhead"
+      },
+      {
+        "persona": "Developer",
+        "job": "Understand task dependencies before starting work",
+        "outcome": "Avoid blocked work and prioritize tasks that unblock others"
+      },
+      {
+        "persona": "Developer",
+        "job": "Update task status on mobile while away from desk",
+        "outcome": "Keep team informed without being tied to desktop computer"
+      },
+      {
+        "persona": "Project Manager",
+        "job": "Get real-time project status without scheduling status meetings",
+        "outcome": "Make informed decisions quickly and reduce meeting overhead"
+      },
+      {
+        "persona": "Project Manager",
+        "job": "Drag and drop tasks to reorganize priorities visually",
+        "outcome": "Communicate priorities clearly and adapt to changing needs"
+      },
+      {
+        "persona": "Team Member",
+        "job": "See task updates from teammates instantly without refreshing",
+        "outcome": "Stay coordinated and avoid duplicate work or conflicts"
+      },
+      {
+        "persona": "Stakeholder",
+        "job": "View project progress at a glance without technical knowledge",
+        "outcome": "Understand project health without attending development meetings"
+      }
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC-001",
+        "description": "User can create a task with title, description, and assignee in under 30
+  seconds",
+        "category": "functional"
+      },
+      {
+        "id": "AC-002",
+        "description": "User can drag and drop tasks between columns (To Do, In Progress, In
+  Review, Done)",
+        "category": "functional"
+      },
+      {
+        "id": "AC-003",
+        "description": "User can mark a task as dependent on one or more other tasks",
+        "category": "functional"
+      },
+      {
+        "id": "AC-004",
+        "description": "System displays visual indicator when a task is blocked by incomplete
+  dependencies",
+        "category": "functional"
+      },
+      {
+        "id": "AC-005",
+        "description": "User can link a task to a GitHub issue or pull request",
+        "category": "functional"
+      },
+      {
+        "id": "AC-006",
+        "description": "System automatically syncs task status with linked GitHub issue status",
+        "category": "functional"
+      },
+      {
+        "id": "AC-007",
+        "description": "User can authenticate using GitHub OAuth",
+        "category": "functional"
+      },
+      {
+        "id": "AC-008",
+        "description": "System displays real-time updates when other users move or edit tasks
+  without page refresh",
+        "category": "functional"
+      },
+      {
+        "id": "AC-009",
+        "description": "User can filter tasks by assignee, status, or label",
+        "category": "functional"
+      },
+      {
+        "id": "AC-010",
+        "description": "User can view task history (who changed what and when)",
+        "category": "functional"
+      },
+      {
+        "id": "AC-011",
+        "description": "Task board is fully responsive and usable on mobile devices (minimum 375px
+   width)",
+        "category": "non-functional"
+      },
+      {
+        "id": "AC-012",
+        "description": "Task updates propagate to all connected clients in under 1 second",
+        "category": "non-functional"
+      },
+      {
+        "id": "AC-013",
+        "description": "System supports 20 concurrent users without performance degradation",
+        "category": "non-functional"
+      },
+      {
+        "id": "AC-014",
+        "description": "Initial page load completes in under 2 seconds on standard broadband
+  connection",
+        "category": "non-functional"
+      },
+      {
+        "id": "AC-015",
+        "description": "Drag-and-drop operations feel smooth (60fps) on desktop browsers",
+        "category": "non-functional"
+      },
+      {
+        "id": "AC-016",
+        "description": "System works on Chrome, Firefox, and Safari (latest 2 versions)",
+        "category": "technical"
+      },
+      {
+        "id": "AC-017",
+        "description": "System uses WebSocket for real-time updates with automatic reconnection on
+   connection loss",
+        "category": "technical"
+      },
+      {
+        "id": "AC-018",
+        "description": "System is self-hosted with no external cloud dependencies",
+        "category": "technical"
+      },
+      {
+        "id": "AC-019",
+        "description": "All third-party dependencies are open-source (no paid services)",
+        "category": "technical"
+      },
+      {
+        "id": "AC-020",
+        "description": "System integrates with GitHub API v3 or GraphQL API for issue and PR
+  synchronization",
+        "category": "technical"
+      }
+    ],
+    "user_flows": [
+      {
+        "id": "UF-001",
+        "name": "Quick Task Creation Flow",
+        "steps": [
+          "User clicks 'New Task' button on Kanban board",
+          "System displays inline task creation form (title, description, assignee dropdown)",
+          "User enters task title (required) and optionally description and assignee",
+          "User presses Enter or clicks 'Create'",
+          "System creates task, adds it to 'To Do' column, broadcasts update to all connected
+  users",
+          "User sees new task appear in column immediately"
+        ],
+        "acceptance_criteria_ids": ["AC-001", "AC-008", "AC-012"]
+      },
+      {
+        "id": "UF-002",
+        "name": "Drag-and-Drop Task Status Update Flow",
+        "steps": [
+          "User sees task in current column on Kanban board",
+          "User clicks and holds on task card",
+          "User drags task to different column (e.g., from 'To Do' to 'In Progress')",
+          "System shows visual feedback during drag (column highlight, drop zones)",
+          "User releases mouse to drop task in new column",
+          "System updates task status in database, broadcasts change to all users",
+          "All connected users see task move to new column within 1 second"
+        ],
+        "acceptance_criteria_ids": ["AC-002", "AC-008", "AC-012", "AC-015"]
+      },
+      {
+        "id": "UF-003",
+        "name": "Task Dependency Setup Flow",
+        "steps": [
+          "User opens task details by clicking on task card",
+          "System displays task detail modal with 'Dependencies' section",
+          "User clicks 'Add Dependency' button",
+          "System shows searchable dropdown of other tasks in project",
+          "User selects one or more tasks that must be completed first",
+          "System saves dependencies and displays visual indicator on blocked task",
+          "User sees warning icon on task card indicating it is blocked"
+        ],
+        "acceptance_criteria_ids": ["AC-003", "AC-004"]
+      },
+      {
+        "id": "UF-004",
+        "name": "GitHub Issue Synchronization Flow",
+        "steps": [
+          "User opens task details",
+          "User clicks 'Link GitHub Issue' button",
+          "System displays input field for GitHub issue URL or issue number",
+          "User enters GitHub issue number (e.g., '#123')",
+          "System validates issue exists in connected GitHub repository",
+          "System creates bidirectional link and syncs current status",
+          "When GitHub issue is closed, system automatically moves task to 'Done' column",
+          "All users see task status update in real-time"
+        ],
+        "acceptance_criteria_ids": ["AC-005", "AC-006", "AC-008"]
+      },
+      {
+        "id": "UF-005",
+        "name": "Mobile Task Update Flow",
+        "steps": [
+          "User opens task board on mobile device (phone or tablet)",
+          "System displays responsive Kanban board with mobile-optimized layout",
+          "User taps on task to open details",
+          "System displays full-screen task detail view",
+          "User changes assignee or status using mobile-friendly dropdowns",
+          "User taps 'Save' button",
+          "System updates task and syncs to all devices",
+          "User returns to board and sees updated task"
+        ],
+        "acceptance_criteria_ids": ["AC-011", "AC-008", "AC-012"]
+      },
+      {
+        "id": "UF-006",
+        "name": "User Authentication Flow",
+        "steps": [
+          "User navigates to task board URL",
+          "System detects unauthenticated user, redirects to login page",
+          "User clicks 'Sign in with GitHub' button",
+          "System redirects to GitHub OAuth authorization page",
+          "User approves access to organization",
+          "GitHub redirects back to system with authorization code",
+          "System exchanges code for access token, creates user session",
+          "User is redirected to task board with full access"
+        ],
+        "acceptance_criteria_ids": ["AC-007"]
+      }
+    ],
+    "page_flows": [
+      {
+        "id": "PF-001",
+        "name": "Login to Task Board",
+        "pages": [
+          {"page": "Landing Page", "action": "Click 'Sign in with GitHub'"},
+          {"page": "GitHub OAuth", "action": "Authorize application"},
+          {"page": "Task Board (Kanban View)", "action": "View all tasks in columns"}
+        ]
+      },
+      {
+        "id": "PF-002",
+        "name": "Task Creation to Completion",
+        "pages": [
+          {"page": "Task Board", "action": "Click 'New Task' button"},
+          {"page": "Inline Task Form", "action": "Enter task details and submit"},
+          {"page": "Task Board", "action": "See new task in 'To Do' column"},
+          {"page": "Task Detail Modal", "action": "Click task to view details, set dependencies"},
+          {"page": "Task Board", "action": "Drag task through workflow columns"},
+          {"page": "Task Board", "action": "Task reaches 'Done' column"}
+        ]
+      },
+      {
+        "id": "PF-003",
+        "name": "GitHub Integration Setup",
+        "pages": [
+          {"page": "Task Board", "action": "Click settings icon"},
+          {"page": "Settings Page", "action": "Navigate to 'GitHub Integration' section"},
+          {"page": "GitHub App Install", "action": "Install GitHub app on organization"},
+          {"page": "Settings Page", "action": "See confirmation of successful connection"},
+          {"page": "Task Board", "action": "Return to board, 'Link GitHub Issue' now available"}
+        ]
+      },
+      {
+        "id": "PF-004",
+        "name": "Mobile Task Update",
+        "pages": [
+          {"page": "Task Board (Mobile)", "action": "Tap on task card"},
+          {"page": "Task Detail (Mobile Fullscreen)", "action": "Update status or assignee"},
+          {"page": "Task Board (Mobile)", "action": "See updated task in new position"}
+        ]
+      }
+    ],
+    "technical_constraints": [
+      {
+        "type": "platform",
+        "description": "Must be fully responsive and functional on mobile devices (minimum width
+  375px) and desktop browsers (Chrome, Firefox, Safari - latest 2 versions)",
+        "rationale": "30% of usage expected on mobile within 3 months; target audience works
+  across devices"
+      },
+      {
+        "type": "technology",
+        "description": "Must use only open-source libraries and frameworks with no paid
+  third-party services",
+        "rationale": "Budget constraint of $0 for external services"
+      },
+      {
+        "type": "integration",
+        "description": "Must integrate with GitHub API (REST v3 or GraphQL v4) for issue and pull
+  request synchronization",
+        "rationale": "Target users are development teams already using GitHub; reduces duplicate
+  data entry"
+      },
+      {
+        "type": "security",
+        "description": "Must use GitHub OAuth 2.0 for authentication with organization scope
+  access",
+        "rationale": "Leverages existing GitHub accounts; no need to manage separate password
+  database"
+      },
+      {
+        "type": "performance",
+        "description": "Real-time updates must propagate to all connected clients in under 1
+  second using WebSocket connections",
+        "rationale": "Key success metric; enables team coordination without manual refreshes"
+      },
+      {
+        "type": "performance",
+        "description": "System must support minimum 20 concurrent users without latency
+  degradation",
+        "rationale": "Target team size is 5-20 people; must handle entire team online
+  simultaneously"
+      },
+      {
+        "type": "platform",
+        "description": "Must be self-hosted with no external cloud dependencies (can run entirely
+  on-premises or private cloud)",
+        "rationale": "Constraint specified in BRD; some teams have security requirements for
+  self-hosting"
+      },
+      {
+        "type": "performance",
+        "description": "Initial page load must complete in under 2 seconds on standard broadband
+  connection",
+        "rationale": "Fast access is critical for daily use tool; reduces friction in adoption"
+      },
+      {
+        "type": "performance",
+        "description": "Drag-and-drop interactions must maintain 60fps frame rate on desktop
+  browsers",
+        "rationale": "Smooth interactions are core to Kanban board UX; janky performance reduces
+  productivity"
+      },
+      {
+        "type": "technology",
+        "description": "Must use WebSocket with automatic reconnection logic for real-time
+  updates",
+        "rationale": "Ensures reliable real-time synchronization even with unstable network
+  connections"
+      },
+      {
+        "type": "platform",
+        "description": "Task creation must be achievable in under 30 seconds from board view",
+        "rationale": "Key success metric; low friction for task creation increases system usage"
+      }
+    ]
+  }
