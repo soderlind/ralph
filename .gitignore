@@ -26,6 +26,10 @@ progress.txt
 .DS_Store
 Thumbs.db
 
+# Skills
+.copilot/skills/
+.claude/skills/
+
 # Logs
 docs/implementation-log.md
 docs/cleanup-log.md
