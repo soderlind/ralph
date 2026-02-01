@@ -1,26 +1,104 @@
-```
-╔════════════════════════════════════════════════════════════════╗
-║          RALPH SDLC WRAPPER - ARCHITECTURE GUIDE               ║
-╚════════════════════════════════════════════════════════════════╝
-```
+# Ralph SDLC Wrapper - Architecture Guide
 
-# Ralph SDLC Wrapper Architecture
+Complete technical architecture showing HOW Ralph works internally.
 
-Complete technical architecture for the Ralph SDLC wrapper integrating with Vibe-Kanban.
+> **See also:** [docs/RFC.md](RFC.md) for design philosophy (WHY Ralph exists)
+
+---
 
 ## 🎯 Overview
 
-Ralph transforms product development from requirements to implementation using:
+Ralph transforms product development through a structured pipeline:
 
 | Component | Purpose |
 |-----------|---------|
-| **Markdown PRDs** | Human-readable, LLM-parseable specifications |
-| **Agentic Skills** | Loaded by coding agent from project scope |
-| **Vibe-Kanban integration** | Via prompt-based MCP protocol |
-| **Phase-contextual commands** | Clear workflow progression (brd-prd → prd-tasks → tasks-kanban → run) |
+| **ralph.py** | Command orchestrator and prompt generator |
+| **Agentic Skills** | AI-executable markdown workflows |
+| **Vibe-Kanban MCP** | Task management integration via Model Context Protocol |
+| **Git Worktrees** | Isolated workspaces for parallel execution |
 | **Two-mode execution** | Prompt generator (default) + Execute mode (automation) |
 
-## 🔄 Two-Mode Architecture
+---
+
+## 📊 System Architecture
+
+### High-Level Components
+
+### High-Level Components
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                           USER                                  │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                        ralph.py                                 │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │ print_prompt │  │ detect_git   │  │ load_config  │          │
+│  │   ()         │  │ _branch()    │  │   ()         │          │
+│  └──────────────┘  └──────────────┘  └──────────────┘          │
+│                                                                  │
+│  Commands: brd, prd, tasks-kanban, run, review, cleanup         │
+└────────────────────┬────────────────────────────────────────────┘
+                     │
+                     ├──────────────┬──────────────┐
+                     ▼              ▼              ▼
+          ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+          │   Copilot    │ │  AI Skills   │ │ Config Files │
+          │     CLI      │ │  (.copilot/  │ │  (ralph.json)│
+          └──────┬───────┘ │   skills/)   │ └──────────────┘
+                 │         └──────┬───────┘
+                 │                │
+                 └────────┬───────┘
+                          ▼
+              ┌─────────────────────┐
+              │   Vibe-Kanban MCP   │
+              │  (Task Management)  │
+              └──────────┬──────────┘
+                         │
+                         ▼
+              ┌─────────────────────┐
+              │   Git Worktrees     │
+              │ (Isolated Workspaces)│
+              └─────────────────────┘
+```
+
+### Component Descriptions
+
+**ralph.py**
+- Python CLI orchestrator
+- Generates prompts or executes commands
+- Detects git context, loads configuration
+- Routes commands to appropriate skills
+
+**Copilot CLI**
+- GitHub Copilot command-line interface
+- Loads and executes AI skills
+- Grants MCP permissions interactively
+- Provides AI-powered code generation
+
+**AI Skills**
+- Markdown-based workflow instructions
+- Loaded from `.copilot/skills/` and `.claude/skills/`
+- Executed by AI (not scripted)
+- 6 skills: brd-to-prd, prd-to-tasks, tasks-kanban, run, task-review, cleanup-agent
+
+**Vibe-Kanban MCP**
+- Model Context Protocol server for task management
+- Runs locally via `npx vibe-kanban --mcp`
+- Provides tools: list_projects, create_task, start_workspace_session, etc.
+- Permissions managed by Copilot CLI
+
+**Git Worktrees**
+- Parallel isolated development environments
+- One worktree per task (e.g., `vibe-kanban-TASK-001/`)
+- Enables simultaneous task execution
+- Cleaned up via `scripts/cleanup-worktrees.sh`
+
+---
+
+##🔄 Two-Mode Architecture
 
 Ralph operates in two distinct modes to address different use cases:
 

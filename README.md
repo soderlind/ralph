@@ -59,8 +59,9 @@ Before using Ralph, ensure you have:
    git --version  # Should be installed
    ```
 
-4. **Vibe-Kanban Account & MCP Server**
-   - Sign up at: https://vibekanban.com/
+4. **Vibe-Kanban (Local Setup)**
+   - Run locally: `npx vibe-kanban` or `npm run vibe-kanban`
+   - Opens at http://localhost:3000
    - Create a project (you'll need the project name)
    - MCP server configured (see Setup Step 2)
 
@@ -190,7 +191,8 @@ Edit `config/ralph.json` in the ralph-copilot directory:
 # List all projects
 copilot -p "Use vibe_kanban-list_projects to show all projects"
 
-# Or visit: https://vibekanban.com/projects
+# Or start Vibe-Kanban UI
+npm run vibe-kanban
 ```
 
 ### Step 5: Sync Skills to Project Scope
@@ -224,7 +226,7 @@ npm run sync-skills
 If you want to run Vibe-Kanban UI locally to view your projects and tasks in a dashboard:
 
 ```bash
-# Start Vibe-Kanban UI (opens at http://localhost:3000)
+# Start Vibe-Kanban UI
 npm run vibe-kanban
 
 # In another terminal, you can now view your Vibe-Kanban dashboard
@@ -237,10 +239,9 @@ npm run stop-vibe-kanban
 
 **Requirements for Vibe-Kanban UI:**
 - Node.js 16+ (comes with `npx`)
-- Internet connection (to connect to Vibe-Kanban servers)
-- Active Vibe-Kanban account
+- No cloud account needed - runs locally
 
-**Note:** The Vibe-Kanban UI is optional. You don't need it to use Ralph - you can manage tasks entirely through Copilot CLI and the web UI at https://vibekanban.com/
+**Note:** The Vibe-Kanban UI is optional. You don't need it to use Ralph - you can manage tasks entirely through Copilot CLI and MCP tools.
 
 ### Step 6: Verify Setup (Test End-to-End)
 
@@ -261,7 +262,8 @@ copilot
 > y  # Approve permissions
 # ✓ Should create task in Vibe-Kanban
 
-# 4. View tasks at https://vibekanban.com/
+# 4. View tasks in Vibe-Kanban UI
+npm run vibe-kanban
 # ✓ You should see your test task in the project
 
 # 5. Test execute mode (after permissions granted)
@@ -512,7 +514,7 @@ python ralph.py tasks-kanban plans/tasks.json
 - Ralph checks if Vibe-Kanban MCP is running
 - Prompts you to select a project (or uses configured project_name)
 - Creates all tasks in Vibe-Kanban with their dependencies
-- You can now see tasks at https://vibekanban.com/
+- View tasks: `npm run vibe-kanban`
 
 **Interactive**: If no project_name is set, you'll be asked to select:
 ```

@@ -10,14 +10,6 @@ All notable changes to the Ralph Copilot project are documented here.
 - **Cleanup Log** (`docs/cleanup-log.md`): Record of archived tasks and cleanup operations
 - **Archive Structure**: Organized archive directory for completed tasks at `archive/tasks/TASK-{ID}/`
 
-### Tasks Reviewed, Archived, and Deleted
-
-- ✅ **TASK-001**: Create TEST.md file with basic content (archived + deleted from Vibe-Kanban)
-- ✅ **TASK-002**: Create NOTES.md file (archived + deleted from Vibe-Kanban)
-- ✅ **TASK-003**: Update TEST.md with test case results (archived + deleted from Vibe-Kanban)
-- ✅ **TASK-004**: Update NOTES.md with implementation notes (archived + deleted from Vibe-Kanban)
-- ✅ **TASK-005**: Edit TEST.md and NOTES.md with new journal entry (archived + deleted from Vibe-Kanban)
-
 ### Cleanup Operations
 
 - Each task documented in `archive/tasks/TASK-{ID}/README.md`

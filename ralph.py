@@ -465,7 +465,7 @@ Project name: {project_name}
         response = invoke_copilot(skill_name, prompt, model=model, yolo=yolo_mode)
         
         log("✅ Task creation complete")
-        log(f"💡 View tasks at: https://vibekanban.com/")
+        log(f"💡 View tasks in Vibe-Kanban UI: npm run vibe-kanban")
     else:
         # Show copy-paste prompt
         context = {
@@ -547,7 +547,7 @@ Limit to first 3 tasks if many are ready (max_parallel_tasks).
         response = invoke_copilot(skill_name, prompt, model=model, yolo=yolo_mode)
         
         log("\n✅ Run complete")
-        log("💡 View workspace sessions at: https://vibekanban.com/")
+        log("💡 View workspace sessions in Vibe-Kanban UI: npm run vibe-kanban")
     else:
         # Show copy-paste prompt
         context = {
