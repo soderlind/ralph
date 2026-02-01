@@ -1105,4 +1105,10 @@ Ralph is a work in progress. See [SUMMARY.md](SUMMARY.md) for current status and
 
 ---
 
+## 🙏 Acknowledgments
+
+Inspired by [Per Soderlind's AI-driven SDLC approach](https://gist.github.com/soderlind/ca83ba5417e3d9e25b68c7bdc644832c). While Ralph is a completely new implementation with a different architecture, we're grateful for the conceptual foundation his work provided. See [CREDITS.md](CREDITS.md) for full attribution and details on what we borrowed vs. what we built differently.
+
+---
+
 **Built with ❤️ for product teams who want to scale their development workflow.**

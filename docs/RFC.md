@@ -33,6 +33,14 @@ Instead of just asking AI to "write a function" or "fix a bug," what if we could
 
 The AI already has these skills. We just need to **orchestrate** them through a consistent workflow.
 
+### Background & Inspiration
+
+This vision was pioneered by **Per Soderlind** in his innovative work on AI-driven SDLC automation ([original gist](https://gist.github.com/soderlind/ca83ba5417e3d9e25b68c7bdc644832c)). His approach demonstrated how AI could be orchestrated through dependency graphs to automate software development cycles continuously.
+
+Ralph builds on these foundational concepts—dependency-based task execution, continuous review-run cycles, and structured task representations—but implements them through a completely new architecture. Where the original focused on direct execution, Ralph introduces **prompt generation mode** as the default, making AI orchestration transparent and permission-friendly. We also added markdown-first workflows (BRD → PRD → Tasks), an agentic skills system, and local-first tooling with Vibe-Kanban.
+
+While our implementation differs significantly, we're grateful for the conceptual foundation Per's work provided. See [CREDITS.md](../CREDITS.md) for detailed attribution.
+
 ---
 
 ## 3. The Solution: Ralph
